@@ -692,130 +692,64 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     }
   };
 };
-  // ============================================================================
-  // FALLBACK: If Life: line not found or name not extracted, use the old patterns
-  // ============================================================================
+// ============================================================================
+// FALLBACK: Clean extraction (stable version - no broken loops)
+// ============================================================================
 
-  // First pass: look for lines with track codes - these definitively contain the name
-  for (let idx = 0; idx < lines.length; idx++) {
-    const line = lines[idx];
-    const trimmed = line.trim();
-    
-    // Skip race lines (PP lines start with date)
-    if (hasDateToken(trimmed)) continue;
-    
-    // Skip metadata lines
-    if (trimmed.startsWith('Owner:') || trimmed.startsWith('Silks:') || 
-        trimmed.startsWith('Trainer:') || trimmed.startsWith('Life:') ||
-        trimmed.startsWith('Workout(s):') || trimmed.startsWith('Scratch') ||
-        /^20\d{2}:/.test(trimmed) ||
-        trimmed.includes('Copyright') || trimmed.includes('EQUIBASE') ||
-        trimmed.includes('RACE') || trimmed.includes('CONTINUED')) {
-      continue;
-    }
-    
-    // Skip breeding lines
-    if (trimmed.match(/^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i)) continue;
-    
-    // Skip color lines
-    if (COLORS.includes(trimmed)) continue;
-    
-    // Skip odds lines
-    if (isOddsFormat(trimmed)) continue;
-    
-    // Skip lines that are just numbers
-    if (/^\d+$/.test(trimmed)) continue;
-    
-    // Skip lines that look like claiming price or class info
-    if (trimmed.startsWith('Clm') || trimmed.startsWith('$')) continue;
-    
-    // Skip lines that start with track codes (stats lines)
-    if (/^[A-Z]{2,4}:\s*\d/.test(trimmed)) continue;
-    
-    // Look for track code pattern (e.g., "TAM:", "TP:", "MVR:")
-    for (const trackCode of TRACK_CODES) {
-      const trackPattern = new RegExp(`^(.+?)\\s+${trackCode}:`);
-      const trackMatch = trimmed.match(trackPattern);
-      if (trackMatch) {
-        let name = trackMatch[1].trim();
-        const weightMatch = trimmed.match(/\s(\d{3})$/);
-        const weight = weightMatch ? weightMatch[1] : '';
-        const medMatch = trimmed.match(/\(L\d?\)/);
-        if (medMatch && !name.includes('(L')) name += ` ${medMatch[0]}`;
-        
-        return { 
-          name: name.replace(/\s+/g, ' ').trim(), 
-          weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-    }
-    
-    // Name with weight at end (e.g., "HorseName (L) 121")
-    const nameWeightMatch = trimmed.match(/^([A-Za-z][A-Za-z'\s]+?)\s*(?:\(L\d?\))?\s*(\d{3})$/);
-    if (nameWeightMatch) {
-      let name = nameWeightMatch[1].trim();
-      const hasMed = trimmed.match(/\(L\d?\)/);
-      if (hasMed && !name.includes('(L')) name += ` ${hasMed[0]}`;
-      
-      return { 
-        name: name.replace(/\s+/g, ' ').trim(), 
-        weight: nameWeightMatch[2],
-        validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-      };
-    }
-  }
-  
-  return { 
-    name: '', 
-    weight: '',
-    validation: { field: 'name', value: '', reason: 'NAME_GUESSED', confidence: 'LOW' }
-  };
+// 🔥 Clean full text (removes weird PDF junk like   etc.)
+const fullText = lines
+  .join(' ')
+  .replace(/[\x00-\x1F]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
 
+// 🔥 Pattern 1: Name (IRE) (L) 124 OR Name (L1) 122
+let match = fullText.match(/([A-Z][A-Za-z'’\-\.\s]+?)\s*(\([A-Za-z]+\))?\s*(\(L\d?\))\s*(\d{3})/);
 
+if (match) {
+  let name = match[1].trim();
+  if (match[2]) name += ` ${match[2]}`;
+  name += ` ${match[3]}`;
 
-
-
-
-
-
-
-
-
-
-
-/**
- * Extract odds from block lines
- */
-const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (isOddsFormat(trimmed)) {
-      return {
-        odds: trimmed,
-        validation: { field: 'odds', value: trimmed, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
-      };
-    }
-  }
-  
-  for (const line of lines) {
-    if (hasDateToken(line)) {
-      const odds = extractOddsFromLine(line);
-      if (odds) {
-        return {
-          odds,
-          validation: { field: 'odds', value: odds, reason: 'FOUND_IN_PP_LINE', confidence: 'MEDIUM' }
-        };
-      }
-    }
-  }
-  
   return {
-    odds: '0',
-    validation: { field: 'odds', value: '0', reason: 'ODDS_NOT_FOUND', confidence: 'LOW' }
+    name: name.replace(/\s+/g, ' ').trim(),
+    weight: match[4],
+    validation: {
+      field: 'name',
+      value: name,
+      reason: 'FOUND_IN_HEADER',
+      confidence: 'HIGH'
+    }
   };
-};
+}
 
+// 🔥 Pattern 2: Name 124
+match = fullText.match(/([A-Z][A-Za-z'’\-\.\s]+?)\s+(\d{3})/);
+
+if (match) {
+  return {
+    name: match[1].replace(/\s+/g, ' ').trim(),
+    weight: match[2],
+    validation: {
+      field: 'name',
+      value: match[1],
+      reason: 'FOUND_IN_HEADER',
+      confidence: 'MEDIUM'
+    }
+  };
+}
+
+// ❌ FINAL fallback
+return {
+  name: '',
+  weight: '',
+  validation: {
+    field: 'name',
+    value: '',
+    reason: 'NAME_GUESSED',
+    confidence: 'LOW'
+  }
+};
 // ============================================================================
 // TRUST SCORING
 // ============================================================================
