@@ -637,77 +637,59 @@ const isNameContinuationLine = (line: string): boolean => {
 };
 
 const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
-  let lifeIndex = -1;
 
-  // Find "Life:"
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim().startsWith("Life:")) {
-      lifeIndex = i;
-      break;
-    }
-  }
+  const fullText = lines
+    .join(' ')
+    .replace(/\x04/g, ' ')
+    .replace(/\x0c/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  if (lifeIndex === -1) {
+  // 🔥 Main pattern: Name (IRE) (L) 124 OR Name (L1) 122
+  let match = fullText.match(/([A-Z][A-Za-z'’\-\.\s]+?)\s*(\([A-Za-z]+\))?\s*(\(L\d?\))\s*(\d{3})/);
+
+  if (match) {
+    let name = match[1].trim();
+    if (match[2]) name += ` ${match[2]}`;
+    name += ` ${match[3]}`;
+
     return {
-      name: "",
-      weight: "",
-      validation: { field: "name", value: "", reason: "NAME_GUESSED", confidence: "LOW" }
+      name: name.trim(),
+      weight: match[4],
+      validation: {
+        field: "name",
+        value: name.trim(),
+        reason: "FOUND_IN_HEADER",
+        confidence: "HIGH"
+      }
     };
   }
 
-  // Helper to check a line for name
-  const checkLine = (line: string) => {
-    if (!line) return null;
+  // 🔥 Backup pattern: Name 123
+  match = fullText.match(/([A-Z][A-Za-z'’\-\.\s]+?)\s+(\d{3})/);
 
-    // START of line
-    let startMatch = line.match(/^([A-Z][A-Za-z'\s\-]+?)\s*(\(L\d?\))?\s*(\d{3})?/);
-    if (startMatch) {
-      let name = startMatch[1].trim();
-      if (startMatch[2]) name += ` ${startMatch[2]}`;
-      return { name, weight: startMatch[3] || "" };
-    }
-
-    // END of line
-    let endMatch = line.match(/([A-Z][A-Za-z'\s\-]+?)\s*(\(L\d?\))?\s*(\d{3})$/);
-    if (endMatch) {
-      let name = endMatch[1].trim();
-      if (endMatch[2]) name += ` ${endMatch[2]}`;
-      return { name, weight: endMatch[3] || "" };
-    }
-
-    return null;
-  };
-
-  // Check first line after Life:
-  let line1 = (lines[lifeIndex + 1] || "").trim();
-  let result = checkLine(line1);
-
-  if (result) {
+  if (match) {
     return {
-      ...result,
-      validation: { field: "name", value: result.name, reason: "FOUND_IN_HEADER", confidence: "HIGH" }
-    };
-  }
-
-  // Check second line after Life (start only)
-  let line2 = (lines[lifeIndex + 2] || "").trim();
-  let startMatch = line2.match(/^([A-Z][A-Za-z'\s\-]+?)\s*(\(L\d?\))?\s*(\d{3})?/);
-
-  if (startMatch) {
-    let name = startMatch[1].trim();
-    if (startMatch[2]) name += ` ${startMatch[2]}`;
-
-    return {
-      name,
-      weight: startMatch[3] || "",
-      validation: { field: "name", value: name, reason: "FOUND_IN_HEADER", confidence: "HIGH" }
+      name: match[1].trim(),
+      weight: match[2],
+      validation: {
+        field: "name",
+        value: match[1].trim(),
+        reason: "FOUND_IN_HEADER",
+        confidence: "MEDIUM"
+      }
     };
   }
 
   return {
     name: "",
     weight: "",
-    validation: { field: "name", value: "", reason: "NAME_GUESSED", confidence: "LOW" }
+    validation: {
+      field: "name",
+      value: "",
+      reason: "NAME_GUESSED",
+      confidence: "LOW"
+    }
   };
 };
   // ============================================================================
