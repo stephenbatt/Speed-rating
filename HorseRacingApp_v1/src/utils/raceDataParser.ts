@@ -771,7 +771,6 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     weight: '',
     validation: { field: 'name', value: '', reason: 'NAME_GUESSED', confidence: 'LOW' }
   };
-};
 
 
 
