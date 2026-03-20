@@ -13,7 +13,7 @@ import PatternAnalysis from './PatternAnalysis';
 import StatisticsDashboard from './StatisticsDashboard';
 import ResultsStatsDashboard from './ResultsStatsDashboard';
 import JockeyTrainerLeaderboard from './JockeyTrainerLeaderboard';
-import { parseSimpleFormat, HorseData } from '@/utils/raceDataParser';
+import { HorseData } from '@/utils/raceDataParser';
 import { saveRace } from '@/lib/raceStorage';
 import { saveRaceParticipants } from '@/lib/statisticsStorage';
 import { BarChart3, FileText, Eye, Layers, Table2, Activity, Database, Save, CheckCircle, AlertCircle, Loader2, TrendingUp, PieChart, Trophy, Users } from 'lucide-react';
