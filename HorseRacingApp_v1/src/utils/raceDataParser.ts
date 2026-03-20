@@ -144,12 +144,11 @@ export const extractHorseName = (
 ): { name: string; weight: string; validation: ValidationReport } => {
   const fullText = lines
     .join(" ")
-    .replace(/[\x00-\x1F]/g, " ") // control chars
-    .replace(/[’]/g, "'") // normalize apostrophes
-    .replace(/\s+/g, " ") // collapse whitespace
+    .replace(/[\x00-\x1F]/g, " ")
+    .replace(/[’]/g, "'")
+    .replace(/\s+/g, " ")
     .trim();
 
-  // Pattern 1: Name (IRE) (L) 124 OR Name (L1) 122
   const pattern1 =
     /([A-Z][A-Za-z'.\-\s]+?)\s*(\([A-Za-z]+\))?\s*(\(L\d?\))?\s+(\d{3})\b/;
 
@@ -173,7 +172,6 @@ export const extractHorseName = (
     };
   }
 
-  // Pattern 2: Name 124 (no suffix / L marker)
   const pattern2 = /([A-Z][A-Za-z'.\-\s]+?)\s+(\d{3})\b/;
   match = fullText.match(pattern2);
 
@@ -192,7 +190,6 @@ export const extractHorseName = (
     };
   }
 
-  // Final fallback
   return {
     name: "",
     weight: "",
@@ -461,7 +458,7 @@ export const formatHorseOutput = (horse: HorseData): string => {
   output += `Name: ${horse.name}\n`;
 
   if (horse.isFirstTimeStarter) {
-    output += "\n*** FIRST TIME STARTER - No race history ***\n";
+    output += "\n*** FIRST TIME STARTER - No race history ***\n`;
     output += `Life: ${horse.lifeStats}\n`;
     return output;
   }
@@ -496,112 +493,4 @@ export const formatHorseOutput = (horse: HorseData): string => {
       if (pa.prediction !== "unknown") {
         output += ` | Prediction: ${pa.prediction}`;
       }
-      output += `\nTop 3 Beyer: ${pa.topThreeBeyer.join(" + ")} = ${pa.topThreeBeyerSum}`;
-      output += `\nBest Last 2: ${pa.bestLastTwo} + 5 = ${pa.bestLastTwo + 5}`;
-      output += `\nAdjusted Score: ${pa.adjustedScore}`;
-      if (pa.notes.length > 0) {
-        output += `\nNotes: ${pa.notes.join("; ")}`;
-      }
-    }
-
-    if (horse.trustScore && horse.trustScore.deductions.length > 0) {
-      output += "\n\nTrust Deductions:";
-      horse.trustScore.deductions.forEach(d => {
-        output += `\n  -${d.amount}: ${d.reason}`;
-      });
-    }
-  }
-
-  return output;
-};
-
-export const formatRaceSummary = (horses: HorseData[]): string => {
-  const rankings = calculateRankings(horses);
-
-  let output = "RACE RANKINGS\n";
-  output += "═".repeat(70) + "\n";
-  output += "Rank  Post  Horse                    Score   Adj   Final  Trust\n";
-  output += "─".repeat(70) + "\n";
-
-  rankings.forEach((r, i) => {
-    const rank = (i + 1).toString().padEnd(6);
-    const post = r.postPosition.toString().padEnd(6);
-    const name = r.name.substring(0, 24).padEnd(25);
-    const score = r.adjustedScore.toString().padEnd(8);
-    const adj = r.adjustment.toString().padEnd(6);
-    const final = r.finalScore.toString().padEnd(7);
-    const trust = r.trustLevel;
-
-    output += `${rank}${post}${name}${score}${adj}${final}${trust}\n`;
-  });
-
-  const excluded = horses.filter(h => h.trustScore && h.trustScore.level === "EXCLUDE");
-  if (excluded.length > 0) {
-    output += "\n" + "─".repeat(70) + "\n";
-    output += "EXCLUDED (Trust < 60 or First-Time Starter):\n";
-    excluded.forEach(h => {
-      const reason = h.isFirstTimeStarter
-        ? "First-Time Starter"
-        : `Trust: ${h.trustScore?.score}/100`;
-      output += `  #${h.postPosition} ${h.name} - ${reason}\n`;
-    });
-  }
-
-  return output;
-};
-
-// ============================================================================
-// MAIN PARSER
-// ============================================================================
-
-export const parseRaceData = (rawText: string): RaceData => {
-  const horses = parseSimpleFormat(rawText);
-
-  horses.forEach(horse => {
-    if (!horse.patternAnalysis) {
-      horse.patternAnalysis = analyzePatterns(horse.pastPerformances);
-    }
-    if (!horse.trustScore) {
-      horse.trustScore = calculateTrustScore(horse);
-    }
-  });
-
-  const rankings = calculateRankings(horses);
-  const fingerprint = detectFingerprint(rawText.split("\n"));
-
-  let track = "";
-  let raceNumber = "";
-
-  for (const horse of horses) {
-    for (const pp of horse.pastPerformances) {
-      if (pp.track) {
-        track = pp.track;
-        break;
-      }
-    }
-    if (track) break;
-  }
-
-  if (!track) {
-    const trackMatch = rawText.match(
-      /Gulfstream|Santa Anita|Del Mar|Churchill|Belmont|Saratoga|Keeneland|Hollywood|Tampa|Aqueduct|Laurel|Oaklawn|Fair Grounds|Golden Gate|Mahoning|Thistledown|Belterra|Turfway|Indiana|Ellis/i
-    );
-    if (trackMatch) {
-      track = trackMatch[0];
-    }
-  }
-
-  const raceMatch = rawText.match(/RACE\s+(\d+)/i);
-  if (raceMatch) {
-    raceNumber = raceMatch[1];
-  }
-
-  return {
-    track,
-    raceNumber,
-    date: new Date().toLocaleDateString(),
-    horses,
-    rankings,
-    fingerprint
-  };
-};
+      output += `\nTop 3 Beyer:
