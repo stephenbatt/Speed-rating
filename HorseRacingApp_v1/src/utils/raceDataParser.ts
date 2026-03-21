@@ -458,7 +458,7 @@ export const formatHorseOutput = (horse: HorseData): string => {
   output += `Name: ${horse.name}\n`;
 
   if (horse.isFirstTimeStarter) {
-    output += "\n*** FIRST TIME STARTER - No race history ***\n`;
+    output += "\n*** FIRST TIME STARTER - No race history ***\n";
     output += `Life: ${horse.lifeStats}\n`;
     return output;
   }
