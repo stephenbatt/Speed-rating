@@ -145,7 +145,7 @@ export const extractHorseName = (
   const fullText = lines
     .join(" ")
     .replace(/[\x00-\x1F]/g, " ")
-    .replace(/[’]/g, "'")
+    .replace(/\u2019/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -487,19 +487,36 @@ export const formatHorseOutput = (horse: HorseData): string => {
       output += `${dateTrack}${classInfo}${paceStr}   ${speedStr}${validStr}${hitMiss}${errorIndicator}\n`;
     });
 
+    // FIX 1: Removed the prematurely closed brace that was ending the function too early.
+    // FIX 2: Replaced horse.bestBeyers (non-existent property) with pa.topThreeBeyer
+    //        which is the correct property from the PatternAnalysis interface.
     if (horse.patternAnalysis) {
-  const pa = horse.patternAnalysis;
+      const pa = horse.patternAnalysis;
 
-  output += `\nPattern: ${pa.pattern}`;
+      output += `\nPattern: ${pa.pattern}`;
 
-  if (pa.prediction !== "unknown") {
-    output += ` | Prediction: ${pa.prediction}`;
+      if (pa.prediction !== "unknown") {
+        output += ` | Prediction: ${pa.prediction}`;
+      }
+
+      output += "\n";
+      output += `Top 3 Beyer: ${pa.topThreeBeyer.length > 0 ? pa.topThreeBeyer.join(", ") : "N/A"}\n`;
+    }
   }
 
-  output += "\nTop 3 Beyer:\n";
-  output += `${horse.bestBeyers?.join(", ") || "N/A"}\n`;
-}
-
-return output;
+  // FIX 3: Added the missing return statement for the non-first-time-starter path.
+  // Without this, the function had no return at the end of the main branch,
+  // which caused TypeScript to complain about a missing return value.
+  return output;
 };
-}
+
+// ============================================================================
+// RACE SUMMARY FORMATTER
+// ============================================================================
+
+// FIX 4: formatRaceSummary was completely missing from the file.
+// It was referenced externally (causing "formatRaceSummary is not exported")
+// but never defined. Added the full implementation here.
+export const formatRaceSummary = (horses: HorseData[]): string => {
+  return horses.map(h => formatHorseOutput(h)).join("\n\n");
+};
