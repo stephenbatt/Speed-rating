@@ -493,4 +493,4 @@ export const formatHorseOutput = (horse: HorseData): string => {
       if (pa.prediction !== "unknown") {
         output += ` | Prediction: ${pa.prediction}`;
       }
-      output += `\nTop 3 Beyer:
+      output += "\nTop 3 Beyer:\n";
