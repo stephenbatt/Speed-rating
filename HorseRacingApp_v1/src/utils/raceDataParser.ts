@@ -502,3 +502,4 @@ export const formatHorseOutput = (horse: HorseData): string => {
 
 return output;
 };
+}
