@@ -488,9 +488,17 @@ export const formatHorseOutput = (horse: HorseData): string => {
     });
 
     if (horse.patternAnalysis) {
-      const pa = horse.patternAnalysis;
-      output += `\nPattern: ${pa.pattern}`;
-      if (pa.prediction !== "unknown") {
-        output += ` | Prediction: ${pa.prediction}`;
-      }
-      output += "\nTop 3 Beyer:\n";
+  const pa = horse.patternAnalysis;
+
+  output += `\nPattern: ${pa.pattern}`;
+
+  if (pa.prediction !== "unknown") {
+    output += ` | Prediction: ${pa.prediction}`;
+  }
+
+  output += "\nTop 3 Beyer:\n";
+  output += `${horse.bestBeyers?.join(", ") || "N/A"}\n`;
+}
+
+return output;
+}
