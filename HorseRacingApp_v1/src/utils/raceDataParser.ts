@@ -132,7 +132,12 @@ declare function extractPaceSpeed(
 declare function hasDateToken(line: string): boolean;
 declare function hasClassDescriptor(line: string): boolean;
 declare function hasCallSequence(line: string): boolean;
-declare function parseSimpleFormat(rawText: string): HorseData[];
+export const parseSimpleFormat = (rawText: string): HorseData[] => {
+  console.log("Parsing input:", rawText);
+
+  // TEMP fallback so app doesn't crash
+  return [];
+};
 declare function detectFingerprint(lines: string[]): PPFingerprint | null;
 
 // ============================================================================
