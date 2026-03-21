@@ -135,8 +135,43 @@ declare function hasCallSequence(line: string): boolean;
 export const parseSimpleFormat = (rawText: string): HorseData[] => {
   console.log("Parsing input:", rawText);
 
-  // TEMP fallback so app doesn't crash
-  return [];
+  const lines = rawText.split("\n").filter(l => l.trim() !== "");
+
+  // VERY SIMPLE extraction (temporary but functional)
+  const horses: HorseData[] = [];
+
+  let currentHorse: Partial<HorseData> = {};
+
+  lines.forEach((line) => {
+    // Detect horse name line (simple rule)
+    if (line.includes("(") && line.match(/\d{3}/)) {
+      if (currentHorse.name) {
+        horses.push(currentHorse as HorseData);
+      }
+
+      currentHorse = {
+        name: line.trim(),
+        postPosition: horses.length + 1,
+        color: "",
+        odds: "",
+        weight: "",
+        lifeStats: "",
+        lifeStarts: 0,
+        isFirstTimeStarter: false,
+        pastPerformances: [],
+        validation: []
+      };
+    }
+  });
+
+  // push last horse
+  if (currentHorse.name) {
+    horses.push(currentHorse as HorseData);
+  }
+
+  console.log("Parsed horses:", horses);
+
+  return horses;
 };
 declare function detectFingerprint(lines: string[]): PPFingerprint | null;
 
