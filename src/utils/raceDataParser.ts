@@ -636,263 +636,71 @@ const isNameContinuationLine = (line: string): boolean => {
   return false;
 };
 
-const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
+ const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
   // ============================================================================
-  // LAWBOOK RULE: Horse Name Extraction
+  // LAWBOOK RULE: Horse Name Extraction (FIXED)
   // ============================================================================
-  // ANCHOR: The line starting with "Life:" 
-  // RULE: The horse name is on the line AFTER the "Life:" line
-  //       BUT if that line starts with a track code (MVR:, TAM:, etc.), skip it
-  //       The name starts at the BEGINNING of the name line
-  // STOP TOKENS: 
-  //   - Track code followed by colon (MVR:, TAM:, TP:, etc.)
-  //   - Medication marker in parentheses: (L), (L1), (C), (R)
-  //   - 3-digit weight number (118-126 typically)
-  // ============================================================================
-  
-  // STEP 1: Find the line that starts with "Life:"
+
+  // STEP 1: Find "Life:"
   let lifeLineIndex = -1;
   for (let idx = 0; idx < lines.length; idx++) {
     const trimmed = lines[idx].trim();
     if (trimmed.startsWith('Life:')) {
       lifeLineIndex = idx;
-      break; // Use the FIRST Life: line we find
+      break;
     }
   }
-  
-  // STEP 2: If we found "Life:", look for the name line after it
+
+  // STEP 2: ONLY check next 2 lines after "Life:"
   if (lifeLineIndex >= 0) {
-    // Start looking at lines after Life:
-    for (let offset = 1; offset <= 3 && lifeLineIndex + offset < lines.length; offset++) {
-      const candidateLine = lines[lifeLineIndex + offset].trim();
-      
-      // Skip empty lines
-      if (!candidateLine) continue;
-      
-      // Skip lines that start with track codes (these are stats lines, not name lines)
-      // Pattern: "MVR: 3 1 1 0 47 $16,575 Distance: ..."
-      if (/^[A-Z]{2,4}:\s*\d/.test(candidateLine)) {
-        continue; // This is a stats line like "MVR: 3 1 1 0..."
-      }
-      
-      // Skip breeding lines
-      if (candidateLine.match(/^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i)) {
-        continue;
-      }
-      
-      // Skip workout lines
-      if (candidateLine.startsWith('Workout')) {
-        continue;
-      }
-      
-      // Skip race lines (PP lines start with date)
-      if (hasDateToken(candidateLine)) {
-        continue;
-      }
-      
-      // This line should contain the horse name at the beginning
-      // The name is everything from the start until we hit a stop token
-      let name = '';
-      let weight = '';
-      
-      // PATTERN 1: Name followed by track code (e.g., "Total Smokeshow  MVR:")
-      // The name is at the beginning, before any track code
-      const trackCodeMatch = candidateLine.match(/^([A-Za-z][A-Za-z'\s\-]+?)\s+([A-Z]{2,4}):/);
-      if (trackCodeMatch) {
-        name = trackCodeMatch[1].trim();
-        // Look for weight at end of line
-        const weightMatch = candidateLine.match(/\s(\d{3})$/);
-        if (weightMatch) weight = weightMatch[1];
-        // Check for medication marker
-        const medMatch = candidateLine.match(/\(L\d?\)/);
-        if (medMatch) name += ` ${medMatch[0]}`;
-        
+    const candidates = [
+      lines[lifeLineIndex + 1] || "",
+      lines[lifeLineIndex + 2] || ""
+    ];
+
+    for (const line of candidates) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // Find 3-digit weight
+      const weightMatch = trimmed.match(/\b(\d{3})\b/);
+      if (!weightMatch) continue;
+
+      const weight = weightMatch[0];
+      const weightIndex = trimmed.lastIndexOf(weight);
+
+      // Extract name BEFORE weight
+      let name = trimmed.slice(0, weightIndex).trim();
+
+      // Remove trailing track code junk if present
+      name = name.replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "");
+
+      // Validate name
+      if (name && /^[A-Z]/.test(name) && !/^\d/.test(name) && name.length > 2) {
         return {
-          name: name.replace(/\s+/g, ' ').trim(),
+          name,
           weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-      
-      // PATTERN 2: Name followed by medication marker and weight (e.g., "Dianna's Lady  (L) 126")
-      // This is the format for horse #9
-      const medWeightMatch = candidateLine.match(/^([A-Za-z][A-Za-z'\s\-]+?)\s+\(([LCR]\d?)\)\s*(\d{3})?/);
-      if (medWeightMatch) {
-        name = medWeightMatch[1].trim() + ` (${medWeightMatch[2]})`;
-        weight = medWeightMatch[3] || '';
-        
-        return {
-          name: name.replace(/\s+/g, ' ').trim(),
-          weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-      
-      // PATTERN 3: Name followed by just weight (e.g., "Horse Name 124")
-      const justWeightMatch = candidateLine.match(/^([A-Za-z][A-Za-z'\s\-]+?)\s+(\d{3})$/);
-      if (justWeightMatch) {
-        name = justWeightMatch[1].trim();
-        weight = justWeightMatch[2];
-        
-        return {
-          name: name.replace(/\s+/g, ' ').trim(),
-          weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-      
-      // PATTERN 4: Just a name (no track code, no weight, no medication)
-      const justNameMatch = candidateLine.match(/^([A-Za-z][A-Za-z'\s\-]+)$/);
-      if (justNameMatch) {
-        name = justNameMatch[1].trim();
-        
-        return {
-          name: name.replace(/\s+/g, ' ').trim(),
-          weight: '',
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-      
-      // PATTERN 5: Fallback - take everything before the first colon, parenthesis, or number sequence
-      const fallbackMatch = candidateLine.match(/^([A-Za-z][A-Za-z'\s\-]+?)(?:\s+[A-Z]{2,4}:|\s+\(|\s+\d{3}|$)/);
-      if (fallbackMatch) {
-        name = fallbackMatch[1].trim();
-        const weightMatch = candidateLine.match(/\s(\d{3})(?:\s|$)/);
-        if (weightMatch) weight = weightMatch[1];
-        const medMatch = candidateLine.match(/\(L\d?\)/);
-        if (medMatch) name += ` ${medMatch[0]}`;
-        
-        return {
-          name: name.replace(/\s+/g, ' ').trim(),
-          weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
+          validation: {
+            field: "name",
+            value: name,
+            reason: "FOUND_AFTER_CLASS",
+            confidence: "HIGH"
+          }
         };
       }
     }
   }
-  
-  // ============================================================================
-  // FALLBACK: If Life: line not found or name not extracted, use the old patterns
-  // ============================================================================
 
-  // First pass: look for lines with track codes - these definitively contain the name
-  for (let idx = 0; idx < lines.length; idx++) {
-    const line = lines[idx];
-    const trimmed = line.trim();
-    
-    // Skip race lines (PP lines start with date)
-    if (hasDateToken(trimmed)) continue;
-    
-    // Skip metadata lines
-    if (trimmed.startsWith('Owner:') || trimmed.startsWith('Silks:') || 
-        trimmed.startsWith('Trainer:') || trimmed.startsWith('Life:') ||
-        trimmed.startsWith('Workout(s):') || trimmed.startsWith('Scratch') ||
-        /^20\d{2}:/.test(trimmed) ||
-        trimmed.includes('Copyright') || trimmed.includes('EQUIBASE') ||
-        trimmed.includes('RACE') || trimmed.includes('CONTINUED')) {
-      continue;
-    }
-    
-    // Skip breeding lines
-    if (trimmed.match(/^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i)) continue;
-    
-    // Skip color lines
-    if (COLORS.includes(trimmed)) continue;
-    
-    // Skip odds lines
-    if (isOddsFormat(trimmed)) continue;
-    
-    // Skip lines that are just numbers
-    if (/^\d+$/.test(trimmed)) continue;
-    
-    // Skip lines that look like claiming price or class info
-    if (trimmed.startsWith('Clm') || trimmed.startsWith('$')) continue;
-    
-    // Skip lines that start with track codes (stats lines)
-    if (/^[A-Z]{2,4}:\s*\d/.test(trimmed)) continue;
-    
-    // Look for track code pattern (e.g., "TAM:", "TP:", "MVR:")
-    for (const trackCode of TRACK_CODES) {
-      const trackPattern = new RegExp(`^(.+?)\\s+${trackCode}:`);
-      const trackMatch = trimmed.match(trackPattern);
-      if (trackMatch) {
-        let name = trackMatch[1].trim();
-        const weightMatch = trimmed.match(/\s(\d{3})$/);
-        const weight = weightMatch ? weightMatch[1] : '';
-        const medMatch = trimmed.match(/\(L\d?\)/);
-        if (medMatch && !name.includes('(L')) name += ` ${medMatch[0]}`;
-        
-        return { 
-          name: name.replace(/\s+/g, ' ').trim(), 
-          weight,
-          validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-        };
-      }
-    }
-    
-    // Name with weight at end (e.g., "HorseName (L) 121")
-    const nameWeightMatch = trimmed.match(/^([A-Za-z][A-Za-z'\s]+?)\s*(?:\(L\d?\))?\s*(\d{3})$/);
-    if (nameWeightMatch) {
-      let name = nameWeightMatch[1].trim();
-      const hasMed = trimmed.match(/\(L\d?\)/);
-      if (hasMed && !name.includes('(L')) name += ` ${hasMed[0]}`;
-      
-      return { 
-        name: name.replace(/\s+/g, ' ').trim(), 
-        weight: nameWeightMatch[2],
-        validation: { field: 'name', value: name, reason: 'FOUND_IN_HEADER', confidence: 'HIGH' }
-      };
-    }
-  }
-  
-  return { 
-    name: '', 
-    weight: '',
-    validation: { field: 'name', value: '', reason: 'NAME_GUESSED', confidence: 'LOW' }
-  };
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Extract odds from block lines
- */
-const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (isOddsFormat(trimmed)) {
-      return {
-        odds: trimmed,
-        validation: { field: 'odds', value: trimmed, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
-      };
-    }
-  }
-  
-  for (const line of lines) {
-    if (hasDateToken(line)) {
-      const odds = extractOddsFromLine(line);
-      if (odds) {
-        return {
-          odds,
-          validation: { field: 'odds', value: odds, reason: 'FOUND_IN_PP_LINE', confidence: 'MEDIUM' }
-        };
-      }
-    }
-  }
-  
+  // FALLBACK (unchanged behavior style)
   return {
-    odds: '0',
-    validation: { field: 'odds', value: '0', reason: 'ODDS_NOT_FOUND', confidence: 'LOW' }
+    name: "UNKNOWN",
+    weight: "",
+    validation: {
+      field: "name",
+      value: "",
+      reason: "NAME_GUESSED",
+      confidence: "LOW"
+    }
   };
 };
 
