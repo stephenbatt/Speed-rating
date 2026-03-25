@@ -693,17 +693,16 @@ const isNameContinuationLine = (line: string): boolean => {
 
   // FALLBACK (unchanged behavior style)
   return {
-    name: "UNKNOWN",
-    weight: "",
-    validation: {
-      field: "name",
-      value: "",
-      reason: "NAME_GUESSED",
-      confidence: "LOW"
-    }
-  };
+  name: "UNKNOWN",
+  weight: "",
+  validation: {
+    field: "name",
+    value: "",
+    reason: "NAME_GUESSED",
+    confidence: "LOW"
+  }
 };
-
+};
 // ============================================================================
 // TRUST SCORING
 // ============================================================================
