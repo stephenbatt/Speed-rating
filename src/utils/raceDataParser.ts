@@ -582,7 +582,7 @@ const extractFinish = (line: string): string => {
     const finishMatch = lastCall.match(/^(\d+)/);
     return finishMatch ? finishMatch[1] : '';
   }
-  return '';
+  return 'N/A';
 };
 
 // ============================================================================
@@ -606,7 +606,6 @@ const TRACK_CODES = ['TAM', 'TP', 'GP', 'SA', 'CD', 'BEL', 'SAR', 'KEE', 'DMR', 
  */
 const isPartialNameLine = (line: string): boolean => {
   const trimmed = line.trim();
-  // Must start with capital letter, be 3-20 chars, no special markers
   if (!/^[A-Z][a-z]+/.test(trimmed)) return false;
   if (trimmed.length < 3 || trimmed.length > 20) return false;
   if (COLORS.includes(trimmed)) return false;
@@ -614,7 +613,6 @@ const isPartialNameLine = (line: string): boolean => {
   if (hasDateToken(trimmed)) return false;
   if (trimmed.includes(':')) return false;
   if (/^\d+$/.test(trimmed)) return false;
-  // Should be just letters, maybe apostrophe
   return /^[A-Za-z']+$/.test(trimmed);
 };
 
@@ -623,20 +621,19 @@ const isPartialNameLine = (line: string): boolean => {
  */
 const isNameContinuationLine = (line: string): boolean => {
   const trimmed = line.trim();
-  // Has track code pattern
+
   for (const trackCode of TRACK_CODES) {
     if (trimmed.includes(`${trackCode}:`)) return true;
   }
-  // Has Dist: or Distance:
+
   if (trimmed.includes('Dist:') || trimmed.includes('Distance:')) return true;
-  // Ends with weight (3 digits)
   if (/\s\d{3}$/.test(trimmed)) return true;
-  // Has medication marker and weight
   if (/\(L\d?\)\s*\d{3}/.test(trimmed)) return true;
+
   return false;
 };
 
- const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
+const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
   // ============================================================================
   // LAWBOOK RULE: Horse Name Extraction (FIXED)
   // ============================================================================
@@ -662,20 +659,16 @@ const isNameContinuationLine = (line: string): boolean => {
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Find 3-digit weight
       const weightMatch = trimmed.match(/\b(\d{3})\b/);
       if (!weightMatch) continue;
 
       const weight = weightMatch[0];
       const weightIndex = trimmed.lastIndexOf(weight);
 
-      // Extract name BEFORE weight
       let name = trimmed.slice(0, weightIndex).trim();
 
-      // Remove trailing track code junk if present
       name = name.replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "");
 
-      // Validate name
       if (name && /^[A-Z]/.test(name) && !/^\d/.test(name) && name.length > 2) {
         return {
           name,
@@ -691,22 +684,22 @@ const isNameContinuationLine = (line: string): boolean => {
     }
   }
 
-  // FALLBACK (unchanged behavior style)
+  // FALLBACK
   return {
-  name: "UNKNOWN",
-  weight: "",
-  validation: {
-    field: "name",
-    value: "",
-    reason: "NAME_GUESSED",
-    confidence: "LOW"
-  }
+    name: "UNKNOWN",
+    weight: "",
+    validation: {
+      field: "name",
+      value: "",
+      reason: "NAME_GUESSED",
+      confidence: "LOW"
+    }
+  };
 };
-};
+
 // ============================================================================
 // TRUST SCORING
 // ============================================================================
-
 const calculateTrustScore = (horse: HorseData): TrustScore => {
   let score = 100;
   const deductions: { reason: string; amount: number }[] = [];
@@ -761,7 +754,7 @@ const calculateTrustScore = (horse: HorseData): TrustScore => {
   return { score: Math.max(0, score), deductions, level };
 };
 
-// ============================================================================
+ // ============================================================================
 // PARSE SINGLE PP LINE
 // ============================================================================
 
@@ -776,7 +769,15 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
   const distance = extractDistance(normalized);
   const { raceClass } = extractClass(normalized);
   const { jockey, weight } = extractJockeyWeight(normalized);
-  const odds = extractOddsFromLine(normalized);
+
+  // 🔥 FIX: ensure odds never crashes
+  let odds = "N/A";
+  try {
+    odds = extractOddsFromLine(normalized) || "N/A";
+  } catch (e) {
+    odds = "N/A";
+  }
+
   const finish = extractFinish(normalized);
   
   const { pace, speed, validation: paceSpeedValidation } = extractPaceSpeed(normalized);
@@ -789,14 +790,14 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
     else if (!hasCallSequence(line)) parseError = 'NO_CALL_SEQUENCE';
     else parseError = 'MALFORMED_LINE';
   }
-  
+
   return {
     date,
     track,
     surface,
     distance,
     raceClass,
-    purse: '',
+    purse: "",
     pace,
     speed,
     finish,
