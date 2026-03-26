@@ -1086,10 +1086,22 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       validation.push(nameResult.validation);
       // Extract odds if not found yet
       if (!odds) {
-        const oddsResult = extractOdds(blockLines);
-        odds = oddsResult.odds;
-        validation.push(oddsResult.validation);
-      }
+  for (const line of blockLines) {
+    const foundOdds = extractOddsFromLine(line);
+    if (foundOdds) {
+      odds = foundOdds;
+
+      validation.push({
+        field: "odds",
+        value: odds,
+        reason: "FOUND_IN_BLOCK",
+        confidence: "HIGH"
+      });
+
+      break;
+    }
+  }
+}
       
       // CRITICAL: Only parse PP lines if horse has race history
       // A first-time starter (Life: 0 0 0 0) should have NO past performances
