@@ -649,63 +649,93 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
   }
 
   // STEP 2: ONLY check next 2 lines after "Life:"
-  if (lifeLineIndex >= 0) {
-    const candidates = [
-      lines[lifeLineIndex + 1] || "",
-      lines[lifeLineIndex + 2] || ""
-    ];
+if (lifeLineIndex >= 0) {
+  const candidates = [
+    lines[lifeLineIndex + 1] || "",
+    lines[lifeLineIndex + 2] || ""
+  ];
 
-    for (const line of candidates) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
+  for (const line of candidates) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
-      const weightMatch = trimmed.match(/\b(\d{3})\b/);
-      if (!weightMatch) continue;
+    // 🔥 FIX 1: loose weight match (handles dirty chars like 121� or (L)121)
+    const weightMatch = trimmed.match(/(\d{3})/);
+    if (!weightMatch) continue;
 
-      const weight = weightMatch[0];
-      const weightIndex = trimmed.lastIndexOf(weight);
+    const weight = weightMatch[0];
+    const weightIndex = trimmed.indexOf(weight);
 
-      // 🔥 FIXED NAME EXTRACTION (KEY FIX)
-      let raw = trimmed.slice(0, weightIndex).trim();
-      const match = raw.match(/([A-Z][A-Za-z' ]+)$/);
-      let name = match ? match[1].trim() : "";
+    // ============================
+    // CASE 1: NAME AT BEGINNING
+    // ============================
+    let startMatch = trimmed.match(/^([A-Z][A-Za-z' ]{2,})/);
+    if (startMatch) {
+      let name = startMatch[1].trim();
 
-      // CLEAN TRACK / JUNK AFTER NAME
       name = name
+        .replace(/\s*\(.*?\).*$/, "") // remove (L), (IRE), etc
         .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "")
         .replace(/\s+Dist.*$/i, "")
-        .replace(/\s*\(L\d?\)/gi, "")
-        .replace(/\s*\(\w{2,4}\)/g, "")
         .replace(/[^A-Za-z' ]/g, "")
         .trim();
 
-      // ✅ VALIDATION + RETURN
-      if (name && /^[A-Z]/.test(name) && name.length > 2) {
+      if (name.length > 2) {
         return {
           name,
           weight,
           validation: {
             field: "name",
             value: name,
-            reason: "FOUND_IN_2_LINES",
+            reason: "FOUND_BEGINNING",
+            confidence: "HIGH"
+          }
+        };
+      }
+    }
+
+    // ============================
+    // CASE 2: NAME AT END (before weight)
+    // ============================
+    const beforeWeight = trimmed.slice(0, weightIndex).trim();
+
+    let endMatch = beforeWeight.match(/([A-Z][A-Za-z' ]{2,})$/);
+    if (endMatch) {
+      let name = endMatch[1].trim();
+
+      name = name
+        .replace(/\s*\(.*?\).*$/, "")
+        .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "")
+        .replace(/\s+Dist.*$/i, "")
+        .replace(/[^A-Za-z' ]/g, "")
+        .trim();
+
+      if (name.length > 2) {
+        return {
+          name,
+          weight,
+          validation: {
+            field: "name",
+            value: name,
+            reason: "FOUND_END",
             confidence: "HIGH"
           }
         };
       }
     }
   }
+}
 
-  // FALLBACK
-  return {
-    name: "UNKNOWN",
-    weight: "",
-    validation: {
-      field: "name",
-      value: "",
-      reason: "NAME_GUESSED",
-      confidence: "LOW"
-    }
-  };
+// FALLBACK
+return {
+  name: "UNKNOWN",
+  weight: "",
+  validation: {
+    field: "name",
+    value: "",
+    reason: "NAME_GUESSED",
+    confidence: "LOW"
+  }
 };
 
 // ============================================================================
