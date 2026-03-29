@@ -582,7 +582,7 @@ const extractFinish = (line: string): string => {
     const finishMatch = lastCall.match(/^(\d+)/);
     return finishMatch ? finishMatch[1] : '';
   }
-  return 'N/A';
+  return '';
 };
 
 // ============================================================================
@@ -606,6 +606,7 @@ const TRACK_CODES = ['TAM', 'TP', 'GP', 'SA', 'CD', 'BEL', 'SAR', 'KEE', 'DMR', 
  */
 const isPartialNameLine = (line: string): boolean => {
   const trimmed = line.trim();
+  // Must start with capital letter, be 3-20 chars, no special markers
   if (!/^[A-Z][a-z]+/.test(trimmed)) return false;
   if (trimmed.length < 3 || trimmed.length > 20) return false;
   if (COLORS.includes(trimmed)) return false;
@@ -613,6 +614,7 @@ const isPartialNameLine = (line: string): boolean => {
   if (hasDateToken(trimmed)) return false;
   if (trimmed.includes(':')) return false;
   if (/^\d+$/.test(trimmed)) return false;
+  // Should be just letters, maybe apostrophe
   return /^[A-Za-z']+$/.test(trimmed);
 };
 
@@ -621,24 +623,130 @@ const isPartialNameLine = (line: string): boolean => {
  */
 const isNameContinuationLine = (line: string): boolean => {
   const trimmed = line.trim();
-
+  // Has track code pattern
   for (const trackCode of TRACK_CODES) {
     if (trimmed.includes(`${trackCode}:`)) return true;
   }
-
+  // Has Dist: or Distance:
   if (trimmed.includes('Dist:') || trimmed.includes('Distance:')) return true;
+  // Ends with weight (3 digits)
   if (/\s\d{3}$/.test(trimmed)) return true;
+  // Has medication marker and weight
   if (/\(L\d?\)\s*\d{3}/.test(trimmed)) return true;
-
   return false;
 };
 
 const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
   // ============================================================================
-  // LAWBOOK RULE: Horse Name Extraction (FIXED)
+  // PATTERN-BASED HORSE NAME EXTRACTION
+  // ============================================================================
+  // RULE: Find the FIRST line after "Life:" that matches the HORSE NAME PATTERN
+  //
+  // HORSE NAME PATTERN:
+  //   - Contains letters (A-Z)
+  //   - May contain (L), (L1), (IRE), etc.
+  //   - MUST end with a 3-digit weight (e.g., 118, 121, 124)
+  //   - Does NOT start with a number
+  //   - Does NOT contain a colon (:)
+  //   - Does NOT start with track labels like: SA:, GP:, Wet Dirt:, AllWeather:
+  //
+  // EXTRACTION:
+  //   - Find weight (3 digits)
+  //   - Take everything BEFORE the weight
+  //   - Extract the LAST capitalized phrase
+  //   - Clean: remove (L), (IRE), track codes, junk characters
   // ============================================================================
 
-  // STEP 1: Find "Life:"
+  // Helper: Clean a raw name string
+  const cleanRawName = (raw: string): string => {
+    return raw
+      .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU|LRL|OP|FG|GG|MVR|TDN|BTP|IND|ELP|CNL|PIM|DEL|MNR|CT|PEN|PRX|WO|HAW|AP|EMD|PMM|TUP|SUN|RET|ZIA|ALB|RUI|EVD|LAD|DED|HOU|LS|RP|WRD|FMT|FL|GPW|MTH|PID|TIM):/gi, '')
+      .replace(/\s+Dist.*$/i, '')
+      .replace(/\s*\(L\d?\)/gi, '')
+      .replace(/\s*\(\w{2,4}\)/g, '')  // Remove (IRE), etc
+      .replace(/[^A-Za-z' ]/g, ' ')     // Replace junk with space
+      .replace(/\s+/g, ' ')             // Normalize spaces
+      .trim();
+  };
+
+  // Helper: Check if line is a stats line (starts with track code + numbers)
+  const isStatsLine = (line: string): boolean => {
+    return /^[A-Z]{2,4}:\s*\d/.test(line);
+  };
+
+  // Helper: Check if line is a breeding line
+  const isBreedingLine = (line: string): boolean => {
+    return /^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i.test(line);
+  };
+
+  // Helper: Check if line is noise (not a name line)
+  const isNoiseLine = (line: string): boolean => {
+    if (!line) return true;
+    if (hasDateToken(line)) return true;
+    if (line.startsWith('Owner:')) return true;
+    if (line.startsWith('Silks:')) return true;
+    if (line.startsWith('Trainer:')) return true;
+    if (line.startsWith('Life:')) return true;
+    if (line.startsWith('Workout')) return true;
+    if (line.startsWith('Scratch')) return true;
+    if (/^20\d{2}:/.test(line)) return true;
+    if (line.includes('Copyright')) return true;
+    if (line.includes('EQUIBASE')) return true;
+    if (line.includes('RACE')) return true;
+    if (line.includes('CONTINUED')) return true;
+    if (isBreedingLine(line)) return true;
+    if (COLORS.includes(line)) return true;
+    if (isOddsFormat(line)) return true;
+    if (/^\d+$/.test(line)) return true;
+    if (line.startsWith('Clm') || line.startsWith('$')) return true;
+    return false;
+  };
+
+  // Helper: Check if line matches horse name pattern (has weight at end)
+  const hasHorseNamePattern = (line: string): boolean => {
+    // Must have a 3-digit weight somewhere (118-130 typical)
+    if (!/\b\d{3}\b/.test(line)) return false;
+    // Must have letters (not just numbers)
+    if (!/[A-Za-z]/.test(line)) return false;
+    // Should not start with a number
+    if (/^\d/.test(line)) return false;
+    // Should not be a stats line
+    if (isStatsLine(line)) return false;
+    return true;
+  };
+
+  // Helper: Extract name from a line that matches the pattern
+  const extractNameFromLine = (line: string): { name: string; weight: string } => {
+    // Find the LAST 3-digit number (that's the weight)
+    const weightMatches = line.match(/\b(\d{3})\b/g);
+    if (!weightMatches || weightMatches.length === 0) {
+      return { name: '', weight: '' };
+    }
+
+    const weight = weightMatches[weightMatches.length - 1];
+    const weightIndex = line.lastIndexOf(weight);
+
+    // Get everything before the weight
+    let beforeWeight = line.substring(0, weightIndex).trim();
+
+    // Extract the LAST capitalized phrase
+    // Pattern: Look for capital letter followed by letters/spaces/apostrophes
+    const nameMatch = beforeWeight.match(/([A-Z][A-Za-z'\s]+)$/);
+    if (nameMatch) {
+      let name = cleanRawName(nameMatch[1]);
+      return { name, weight };
+    }
+
+    // Fallback: take the whole thing and clean it
+    let name = cleanRawName(beforeWeight);
+    return { name, weight };
+  };
+
+  // ============================================================================
+  // MAIN EXTRACTION LOGIC
+  // ============================================================================
+
+  // STEP 1: Find "Life:" line
   let lifeLineIndex = -1;
   for (let idx = 0; idx < lines.length; idx++) {
     const trimmed = lines[idx].trim();
@@ -648,99 +756,148 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     }
   }
 
-  // STEP 2: ONLY check next 2 lines after "Life:"
-if (lifeLineIndex >= 0) {
-  const candidates = [
-    lines[lifeLineIndex + 1] || "",
-    lines[lifeLineIndex + 2] || ""
-  ];
+  // STEP 2: Search for name line AFTER "Life:" using PATTERN (not position)
+  if (lifeLineIndex >= 0) {
+    // Check up to 10 lines after Life: for a matching pattern
+    for (let offset = 1; offset <= 10 && lifeLineIndex + offset < lines.length; offset++) {
+      const candidateLine = lines[lifeLineIndex + offset].trim();
 
-  for (const line of candidates) {
+      // Skip empty lines
+      if (!candidateLine) continue;
+
+      // Skip noise lines
+      if (isNoiseLine(candidateLine)) continue;
+
+      // Skip stats lines (they have track codes with numbers)
+      if (isStatsLine(candidateLine)) continue;
+
+      // Check if this line has the horse name pattern
+      if (hasHorseNamePattern(candidateLine)) {
+        const { name, weight } = extractNameFromLine(candidateLine);
+
+        if (name && name.length >= 2 && /^[A-Z]/.test(name)) {
+          return {
+            name,
+            weight,
+            validation: {
+              field: 'name',
+              value: name,
+              reason: 'FOUND_IN_PP_LINE',
+              confidence: 'HIGH',
+              rawSource: candidateLine
+            }
+          };
+        }
+      }
+    }
+  }
+
+  // STEP 3: Fallback - scan ALL lines for the pattern
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
+
+    // Skip noise
+    if (isNoiseLine(line)) continue;
+
+    // Skip stats lines
+    if (isStatsLine(line)) continue;
+
+    // Check for horse name pattern
+    if (hasHorseNamePattern(line)) {
+      const { name, weight } = extractNameFromLine(line);
+
+      if (name && name.length >= 2 && /^[A-Z]/.test(name)) {
+        return {
+          name,
+          weight,
+          validation: {
+            field: 'name',
+            value: name,
+            reason: 'FOUND_IN_PP_LINE',
+            confidence: 'HIGH',
+            rawSource: line
+          }
+        };
+      }
+    }
+  }
+
+  // STEP 4: Last resort - look for ANY line with a 3-digit number
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
+
+    if (isNoiseLine(line)) continue;
+    if (isStatsLine(line)) continue;
+    if (!/\b\d{3}\b/.test(line)) continue;
+    if (!/[A-Za-z]/.test(line)) continue;
+
+    const { name, weight } = extractNameFromLine(line);
+
+    if (name && name.length >= 2 && /^[A-Z]/.test(name)) {
+      return {
+        name,
+        weight,
+        validation: {
+          field: 'name',
+          value: name,
+          reason: 'FOUND_IN_PP_LINE',
+          confidence: 'MEDIUM',
+          rawSource: line
+        }
+      };
+    }
+  }
+
+  return {
+    name: '',
+    weight: '',
+    validation: { field: 'name', value: '', reason: 'NAME_GUESSED', confidence: 'LOW' }
+  };
+};
+
+
+
+
+
+
+
+
+/**
+ * Extract odds from block lines
+ */
+const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
+  for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    // 🔥 FIX 1: loose weight match (handles dirty chars like 121� or (L)121)
-    const weightMatch = trimmed.match(/(\d{3})/);
-    if (!weightMatch) continue;
-
-    const weight = weightMatch[0];
-    const weightIndex = trimmed.indexOf(weight);
-
-    // ============================
-    // CASE 1: NAME AT BEGINNING
-    // ============================
-    let startMatch = trimmed.match(/^([A-Z][A-Za-z' ]{2,})/);
-    if (startMatch) {
-      let name = startMatch[1].trim();
-
-      name = name
-        .replace(/\s*\(.*?\).*$/, "") // remove (L), (IRE), etc
-        .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "")
-        .replace(/\s+Dist.*$/i, "")
-        .replace(/[^A-Za-z' ]/g, "")
-        .trim();
-
-      if (name.length > 2) {
-        return {
-          name,
-          weight,
-          validation: {
-            field: "name",
-            value: name,
-            reason: "FOUND_BEGINNING",
-            confidence: "HIGH"
-          }
-        };
-      }
+    if (isOddsFormat(trimmed)) {
+      return {
+        odds: trimmed,
+        validation: { field: 'odds', value: trimmed, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
+      };
     }
-
-    // ============================
-    // CASE 2: NAME AT END (before weight)
-    // ============================
-    const beforeWeight = trimmed.slice(0, weightIndex).trim();
-
-    let endMatch = beforeWeight.match(/([A-Z][A-Za-z' ]{2,})$/);
-    if (endMatch) {
-      let name = endMatch[1].trim();
-
-      name = name
-        .replace(/\s*\(.*?\).*$/, "")
-        .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU).*$/i, "")
-        .replace(/\s+Dist.*$/i, "")
-        .replace(/[^A-Za-z' ]/g, "")
-        .trim();
-
-      if (name.length > 2) {
+  }
+  
+  for (const line of lines) {
+    if (hasDateToken(line)) {
+      const odds = extractOddsFromLine(line);
+      if (odds) {
         return {
-          name,
-          weight,
-          validation: {
-            field: "name",
-            value: name,
-            reason: "FOUND_END",
-            confidence: "HIGH"
-          }
+          odds,
+          validation: { field: 'odds', value: odds, reason: 'FOUND_IN_PP_LINE', confidence: 'MEDIUM' }
         };
       }
     }
   }
-}
-
-// FALLBACK
-return {
-  name: "UNKNOWN",
-  weight: "",
-  validation: {
-    field: "name",
-    value: "",
-    reason: "NAME_GUESSED",
-    confidence: "LOW"
-  }
+  
+  return {
+    odds: '0',
+    validation: { field: 'odds', value: '0', reason: 'ODDS_NOT_FOUND', confidence: 'LOW' }
+  };
 };
 
 // ============================================================================
 // TRUST SCORING
 // ============================================================================
+
 const calculateTrustScore = (horse: HorseData): TrustScore => {
   let score = 100;
   const deductions: { reason: string; amount: number }[] = [];
@@ -795,7 +952,7 @@ const calculateTrustScore = (horse: HorseData): TrustScore => {
   return { score: Math.max(0, score), deductions, level };
 };
 
- // ============================================================================
+// ============================================================================
 // PARSE SINGLE PP LINE
 // ============================================================================
 
@@ -810,15 +967,7 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
   const distance = extractDistance(normalized);
   const { raceClass } = extractClass(normalized);
   const { jockey, weight } = extractJockeyWeight(normalized);
-
-  // 🔥 FIX: ensure odds never crashes
-  let odds = "N/A";
-  try {
-    odds = extractOddsFromLine(normalized) || "N/A";
-  } catch (e) {
-    odds = "N/A";
-  }
-
+  const odds = extractOddsFromLine(normalized);
   const finish = extractFinish(normalized);
   
   const { pace, speed, validation: paceSpeedValidation } = extractPaceSpeed(normalized);
@@ -831,14 +980,14 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
     else if (!hasCallSequence(line)) parseError = 'NO_CALL_SEQUENCE';
     else parseError = 'MALFORMED_LINE';
   }
-
+  
   return {
     date,
     track,
     surface,
     distance,
     raceClass,
-    purse: "",
+    purse: '',
     pace,
     speed,
     finish,
@@ -1127,22 +1276,10 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       validation.push(nameResult.validation);
       // Extract odds if not found yet
       if (!odds) {
-  for (const line of blockLines) {
-    const foundOdds = extractOddsFromLine(line);
-    if (foundOdds) {
-      odds = foundOdds;
-
-      validation.push({
-        field: "odds",
-        value: odds,
-        reason: "FOUND_IN_BLOCK",
-        confidence: "HIGH"
-      });
-
-      break;
-    }
-  }
-}
+        const oddsResult = extractOdds(blockLines);
+        odds = oddsResult.odds;
+        validation.push(oddsResult.validation);
+      }
       
       // CRITICAL: Only parse PP lines if horse has race history
       // A first-time starter (Life: 0 0 0 0) should have NO past performances
