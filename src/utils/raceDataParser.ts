@@ -656,7 +656,7 @@ return /^[A-Z]{2,4}:\s*\d/.test(line);
 };
 
 const isBreedingLine = (line: string): boolean => {
-return /^(Dk B/|Ch.|B.|Gr/|Br.|Blk.|Dk\s*b.|B.m.|Ch.h.|B.g.|Gr.|Gr/ro)/i.test(line);
+  return /^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i.test(line);
 };
 
 const isNoiseLine = (line: string): boolean => {
