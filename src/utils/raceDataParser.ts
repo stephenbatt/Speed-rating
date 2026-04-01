@@ -637,120 +637,140 @@ const isNameContinuationLine = (line: string): boolean => {
 };
 
 const extractHorseName = (lines: string[]): { name: string; weight: string; validation: ValidationReport } => {
-  // ============================================================================
-  // PATTERN-BASED HORSE NAME EXTRACTION
-  // ============================================================================
-  // RULE: Find the FIRST line after "Life:" that matches the HORSE NAME PATTERN
-  //
-  // HORSE NAME PATTERN:
-  //   - Contains letters (A-Z)
-  //   - May contain (L), (L1), (IRE), etc.
-  //   - MUST end with a 3-digit weight (e.g., 118, 121, 124)
-  //   - Does NOT start with a number
-  //   - Does NOT contain a colon (:)
-  //   - Does NOT start with track labels like: SA:, GP:, Wet Dirt:, AllWeather:
-  //
-  // EXTRACTION:
-  //   - Find weight (3 digits)
-  //   - Take everything BEFORE the weight
-  //   - Extract the LAST capitalized phrase
-  //   - Clean: remove (L), (IRE), track codes, junk characters
-  // ============================================================================
+// ============================================================================
+// PATTERN-BASED HORSE NAME EXTRACTION
+// ============================================================================
 
-  // Helper: Clean a raw name string
-  const cleanRawName = (raw: string): string => {
-    return raw
-      .replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU|LRL|OP|FG|GG|MVR|TDN|BTP|IND|ELP|CNL|PIM|DEL|MNR|CT|PEN|PRX|WO|HAW|AP|EMD|PMM|TUP|SUN|RET|ZIA|ALB|RUI|EVD|LAD|DED|HOU|LS|RP|WRD|FMT|FL|GPW|MTH|PID|TIM):/gi, '')
-      .replace(/\s+Dist.*$/i, '')
-      .replace(/\s*\(L\d?\)/gi, '')
-      .replace(/\s*\(\w{2,4}\)/g, '')  // Remove (IRE), etc
-      .replace(/[^A-Za-z' ]/g, ' ')     // Replace junk with space
-      .replace(/\s+/g, ' ')             // Normalize spaces
-      .trim();
-  };
+const cleanRawName = (raw: string): string => {
+return raw
+.replace(/\x04/g, '')
+.replace(/\s+(TAM|TP|GP|SA|CD|BEL|SAR|KEE|DMR|AQU|LRL|OP|FG|GG|MVR|TDN|BTP|IND|ELP|CNL|PIM|DEL|MNR|CT|PEN|PRX|WO|HAW|AP|EMD|PMM|TUP|SUN|RET|ZIA|ALB|RUI|EVD|LAD|DED|HOU|LS|RP|WRD|FMT|FL|GPW|MTH|PID|TIM):/gi, '')
+.replace(/\s*(L\d?)/gi, '')
+.replace(/[^A-Za-z' ]/g, ' ')
+.replace(/\s+/g, ' ')
+.trim();
+};
 
-  // Helper: Check if line is a stats line (starts with track code + numbers)
-  const isStatsLine = (line: string): boolean => {
-    return /^[A-Z]{2,4}:\s*\d/.test(line);
-  };
+const isStatsLine = (line: string): boolean => {
+return /^[A-Z]{2,4}:\s*\d/.test(line);
+};
 
-  // Helper: Check if line is a breeding line
-  const isBreedingLine = (line: string): boolean => {
-    return /^(Dk B\/|Ch\.|B\.|Gr\/|Br\.|Blk\.|Dk\s*b\.|B\.m\.|Ch\.h\.|B\.g\.|Gr\.|Gr\/ro)/i.test(line);
-  };
+const isBreedingLine = (line: string): boolean => {
+return /^(Dk B/|Ch.|B.|Gr/|Br.|Blk.|Dk\s*b.|B.m.|Ch.h.|B.g.|Gr.|Gr/ro)/i.test(line);
+};
 
-  // Helper: Check if line is noise (not a name line)
-  const isNoiseLine = (line: string): boolean => {
-    if (!line) return true;
-    if (hasDateToken(line)) return true;
-    if (line.startsWith('Owner:')) return true;
-    if (line.startsWith('Silks:')) return true;
-    if (line.startsWith('Trainer:')) return true;
-    if (line.startsWith('Life:')) return true;
-    if (line.startsWith('Workout')) return true;
-    if (line.startsWith('Scratch')) return true;
-    if (/^20\d{2}:/.test(line)) return true;
-    if (line.includes('Copyright')) return true;
-    if (line.includes('EQUIBASE')) return true;
-    if (line.includes('RACE')) return true;
-    if (line.includes('CONTINUED')) return true;
-    if (isBreedingLine(line)) return true;
-    if (COLORS.includes(line)) return true;
-    if (isOddsFormat(line)) return true;
-    if (/^\d+$/.test(line)) return true;
-    if (line.startsWith('Clm') || line.startsWith('$')) return true;
-    return false;
-  };
+const isNoiseLine = (line: string): boolean => {
+if (!line) return true;
+if (hasDateToken(line)) return true;
+if (line.startsWith('Owner:')) return true;
+if (line.startsWith('Silks:')) return true;
+if (line.startsWith('Trainer:')) return true;
+if (line.startsWith('Life:')) return true;
+if (line.startsWith('Workout')) return true;
+if (line.startsWith('Scratch')) return true;
+if (/^20\d{2}:/.test(line)) return true;
+if (line.includes('Copyright')) return true;
+if (line.includes('EQUIBASE')) return true;
+if (line.includes('RACE')) return true;
+if (line.includes('CONTINUED')) return true;
+if (isBreedingLine(line)) return true;
+if (COLORS.includes(line)) return true;
+if (isOddsFormat(line)) return true;
+if (/^\d+$/.test(line)) return true;
+if (line.startsWith('Clm') || line.startsWith('$')) return true;
+return false;
+};
 
-  // Helper: Check if line matches horse name pattern (has weight at end)
-  const hasHorseNamePattern = (line: string): boolean => {
-    // Must have a 3-digit weight somewhere (118-130 typical)
-    if (!/\b\d{3}\b/.test(line)) return false;
-    // Must have letters (not just numbers)
-    if (!/[A-Za-z]/.test(line)) return false;
-    // Should not start with a number
-    if (/^\d/.test(line)) return false;
-    // Should not be a stats line
-    if (isStatsLine(line)) return false;
-    return true;
-  };
+const hasHorseNamePattern = (line: string): boolean => {
+if (!/\b\d{3}\b/.test(line)) return false;
+if (!/[A-Za-z]/.test(line)) return false;
+if (/^\d/.test(line)) return false;
+if (isStatsLine(line)) return false;
+return true;
+};
 
-  // Helper: Extract name from a line that matches the pattern
-  const extractNameFromLine = (line: string): { name: string; weight: string } => {
-    // Find the LAST 3-digit number (that's the weight)
-    const weightMatches = line.match(/\b(\d{3})\b/g);
-    if (!weightMatches || weightMatches.length === 0) {
-      return { name: '', weight: '' };
-    }
+const extractNameFromLine = (line: string): { name: string; weight: string } => {
+const weightMatches = line.match(/\b(\d{3})\b/g);
+if (!weightMatches || weightMatches.length === 0) {
+return { name: '', weight: '' };
+}
 
-    const weight = weightMatches[weightMatches.length - 1];
-    const weightIndex = line.lastIndexOf(weight);
+```
+const weight = weightMatches[weightMatches.length - 1];
+const weightIndex = line.lastIndexOf(weight);
 
-    // Get everything before the weight
-    let beforeWeight = line
+let beforeWeight = line
   .substring(0, weightIndex)
   .replace(/\x04/g, '')
   .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b.*$/gi, '')
+  .replace(/\b(Life:|AllWeather:)\b.*$/gi, '')
   .trim();
-    
-    // Extract the LAST capitalized phrase
-    // Pattern: Look for capital letter followed by letters/spaces/apostrophes
-    const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)*)$/);
-    if (nameMatch) {
-      let name = cleanRawName(nameMatch[1]);
-      return { name, weight };
-    }
 
-    // 🔥 SAFE fallback (ONLY for broken cases)
+// 🔥 FIX FOR SPLIT NAMES (Win N Juice)
+const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
+if (splitMatch) {
+  const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
+  if (combined.split(' ').length >= 2 && combined.length <= 25) {
+    return { name: combined, weight };
+  }
+}
+
+// ORIGINAL LOGIC
+const nameMatch = beforeWeight.match(/([A-Z][A-Za-z'\s]+)$/);
+if (nameMatch) {
+  let name = cleanRawName(nameMatch[1]);
+  return { name, weight };
+}
+
+// SAFE FALLBACK
 let cleaned = beforeWeight
-  .replace(/\x04/g, '')       // remove garbage char
-  .replace(/na \$\d+/gi, '')  // remove "na $0"
+  .replace(/na \$\d+/gi, '')
   .trim();
 
 let name = cleanRawName(cleaned);
 return { name, weight };
-  };
+```
+
+};
+
+for (let i = 0; i < lines.length; i++) {
+const line = lines[i];
+
+```
+if (isNoiseLine(line)) continue;
+
+if (hasHorseNamePattern(line)) {
+  const result = extractNameFromLine(line);
+
+  if (result.name) {
+    return {
+      name: result.name,
+      weight: result.weight,
+      validation: {
+        field: 'name',
+        value: result.name,
+        reason: 'FOUND_IN_PP_LINE',
+        confidence: 'HIGH'
+      }
+    };
+  }
+}
+```
+
+}
+
+return {
+name: '',
+weight: '',
+validation: {
+field: 'name',
+value: '',
+reason: 'NAME_GUESSED',
+confidence: 'LOW'
+}
+};
+};
+
 
   // ============================================================================
   // MAIN EXTRACTION LOGIC
