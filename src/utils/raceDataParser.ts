@@ -880,7 +880,6 @@ confidence: 'LOW'
     weight: '',
     validation: { field: 'name', value: '', reason: 'NAME_GUESSED', confidence: 'LOW' }
   };
-};
 
 
 
