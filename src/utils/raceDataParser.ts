@@ -759,6 +759,7 @@ for (let i = words.length - 1; i >= 0; i--) {
 let name = cleanRawName(collected.join(' '));
 
 return { name, weight };
+  };   
 
   // ============================================================================
   // MAIN EXTRACTION LOGIC
