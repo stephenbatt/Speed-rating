@@ -745,6 +745,7 @@ let cleaned = beforeWeight
 
 let name = cleanRawName(cleaned);
 return { name, weight };
+  };
 
   // ============================================================================
   // MAIN EXTRACTION LOGIC
