@@ -695,68 +695,65 @@ if (!weightMatches || weightMatches.length === 0) {
 return { name: '', weight: '' };
 }
 
-```
 const weight = weightMatches[weightMatches.length - 1];
 const weightIndex = line.lastIndexOf(weight);
 
 let beforeWeight = line
-  .substring(0, weightIndex)
-  .replace(/\x04/g, '')
-  .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(Life:|AllWeather:)\b.*$/gi, '')
-  .trim();
+.substring(0, weightIndex)
+.replace(/\x04/g, '')
+.replace(/(L\d?)/gi, '')
+.replace(/\b(Life:|AllWeather:)\b.*$/gi, '')
+.trim();
 
 // 🔥 FIX FOR SPLIT NAMES (Win N Juice)
 const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
 if (splitMatch) {
-  const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
-  if (combined.split(' ').length >= 2 && combined.length <= 25) {
-    return { name: combined, weight };
-  }
+const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
+if (combined.split(' ').length >= 2 && combined.length <= 25) {
+return { name: combined, weight };
+}
 }
 
 // ORIGINAL LOGIC
 const nameMatch = beforeWeight.match(/([A-Z][A-Za-z'\s]+)$/);
 if (nameMatch) {
-  let name = cleanRawName(nameMatch[1]);
-  return { name, weight };
+let name = cleanRawName(nameMatch[1]);
+return { name, weight };
 }
 
 // SAFE FALLBACK
 let cleaned = beforeWeight
-  .replace(/na \$\d+/gi, '')
-  .trim();
+.replace(/na $\d+/gi, '')
+.trim();
 
 let name = cleanRawName(cleaned);
 return { name, weight };
-```
-
 };
 
 for (let i = 0; i < lines.length; i++) {
 const line = lines[i];
 
-```
 if (isNoiseLine(line)) continue;
 
 if (hasHorseNamePattern(line)) {
-  const result = extractNameFromLine(line);
+const result = extractNameFromLine(line);
 
-  if (result.name) {
-    return {
-      name: result.name,
-      weight: result.weight,
-      validation: {
-        field: 'name',
-        value: result.name,
-        reason: 'FOUND_IN_PP_LINE',
-        confidence: 'HIGH'
-      }
-    };
-  }
+```
+if (result.name) {
+  return {
+    name: result.name,
+    weight: result.weight,
+    validation: {
+      field: 'name',
+      value: result.name,
+      reason: 'FOUND_IN_PP_LINE',
+      confidence: 'HIGH'
+    }
+  };
 }
 ```
 
+}
 }
 
 return {
@@ -772,7 +769,7 @@ confidence: 'LOW'
 };
 
 
-  // ============================================================================
+ // ============================================================================
   // MAIN EXTRACTION LOGIC
   // ============================================================================
 
