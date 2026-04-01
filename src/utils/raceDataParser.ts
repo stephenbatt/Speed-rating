@@ -729,18 +729,36 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     // Get everything before the weight
     let beforeWeight = line.substring(0, weightIndex).trim();
 
-    // Extract the LAST capitalized phrase
-    // Pattern: Look for capital letter followed by letters/spaces/apostrophes
-    const nameMatch = beforeWeight.match(/([A-Z][A-Za-z'\s]+)$/);
-    if (nameMatch) {
-      let name = cleanRawName(nameMatch[1]);
-      return { name, weight };
-    }
+    // Try original logic first
+const nameMatch = beforeWeight.match(/([A-Z][A-Za-z'\s]+)$/);
+if (nameMatch) {
+  let name = cleanRawName(nameMatch[1]);
 
-    // Fallback: take the whole thing and clean it
-    let name = cleanRawName(beforeWeight);
+  // ✅ If name looks good, keep it
+  if (name && name.split(' ').length >= 2) {
     return { name, weight };
-  };
+  }
+}
+
+// 🔥 FALLBACK (ONLY when original fails or weak)
+const words = beforeWeight.split(/\s+/);
+
+let collected: string[] = [];
+
+for (let i = words.length - 1; i >= 0; i--) {
+  const w = words[i];
+
+  // Stop at known separators
+  if (/^(GP:|Distance:|Life:|AllWeather:|\$)/i.test(w)) break;
+
+  collected.unshift(w);
+
+  if (collected.length >= 6) break;
+}
+
+let name = cleanRawName(collected.join(' '));
+
+return { name, weight };
 
   // ============================================================================
   // MAIN EXTRACTION LOGIC
