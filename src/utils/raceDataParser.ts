@@ -727,14 +727,25 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     const weightIndex = line.lastIndexOf(weight);
 
     // Get everything before the weight
-let beforeWeight = line
+    let beforeWeight = line
   .substring(0, weightIndex)
   .replace(/\x04/g, '')
   .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b[\s\S]*?(?=[A-Z][A-Za-z']+\s*\d{3}\b)/gi, '')
+  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b.*$/gi, '')
   .trim();
 
-// Extract LAST clean capitalized phrase (handles end-of-line names)
+// 🔥 FIX SPLIT NAMES (Win N ... Juice)
+const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
+
+if (splitMatch) {
+  const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
+
+  if (combined.split(' ').length >= 2 && combined.length <= 25) {
+    return { name: combined, weight };
+  }
+}
+
+// Extract LAST clean capitalized phrase
 const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)*)$/);
 
 if (nameMatch) {
