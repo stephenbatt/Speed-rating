@@ -731,7 +731,7 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
   .substring(0, weightIndex)
   .replace(/\x04/g, '')
   .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b.*$/gi, '')
+  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b[^A-Z]*?/gi, '')
   .trim();
 
 // 🔥 FIX SPLIT NAMES (Win N ... Juice)
