@@ -731,7 +731,7 @@ let beforeWeight = line
   .substring(0, weightIndex)
   .replace(/\x04/g, '')
   .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b[^A-Z]*$/gi, '')
+  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b[\s\S]*?(?=[A-Z][A-Za-z']+\s*\d{3}\b)/gi, '')
   .trim();
 
 // Extract LAST clean capitalized phrase (handles end-of-line names)
