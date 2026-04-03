@@ -746,7 +746,7 @@ if (splitMatch) {
 }
 
 // Extract LAST clean capitalized phrase
-const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)*)$/);
+const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']*(?:'[A-Za-z]+)?(?:\s+[A-Z][A-Za-z']*(?:'[A-Za-z]+)?)*)$/);
 
 if (nameMatch) {
   let name = cleanRawName(nameMatch[1]);
