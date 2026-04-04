@@ -889,16 +889,23 @@ return { name, weight };
  * Extract odds from block lines
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
+  
+  // 🔥 FIRST PASS — standalone odds line
   for (const line of lines) {
     const trimmed = line.trim();
+
     if (isOddsFormat(trimmed)) {
+      const match = trimmed.match(/\b\d+\s*[-/]\s*\d+\b/);
+      const cleanOdds = match ? match[0].replace(/\s+/g, '') : '';
+
       return {
-        odds: trimmed,
-        validation: { field: 'odds', value: trimmed, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
+        odds: cleanOdds,
+        validation: { field: 'odds', value: cleanOdds, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
       };
     }
   }
-  
+
+  // 🔥 SECOND PASS — odds inside PP lines
   for (const line of lines) {
     if (hasDateToken(line)) {
       const odds = extractOddsFromLine(line);
@@ -910,7 +917,8 @@ const extractOdds = (lines: string[]): { odds: string; validation: ValidationRep
       }
     }
   }
-  
+
+  // 🔥 FALLBACK
   return {
     odds: '0',
     validation: { field: 'odds', value: '0', reason: 'ODDS_NOT_FOUND', confidence: 'LOW' }
