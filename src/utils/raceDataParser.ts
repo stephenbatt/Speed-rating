@@ -716,53 +716,51 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
   };
 
   // Helper: Extract name from a line that matches the pattern
-  const extractNameFromLine = (line: string): { name: string; weight: string } => {
-    // Find the LAST 3-digit number (that's the weight)
-    const weightMatches = line.match(/\b(\d{3})\b/g);
-    if (!weightMatches || weightMatches.length === 0) {
-      return { name: '', weight: '' };
-    }
+const extractNameFromLine = (line: string): { name: string; weight: string } => {
 
-    const weight = weightMatches[weightMatches.length - 1];
-    const weightIndex = line.lastIndexOf(weight);
-
-   // Get everything before the weight
-let beforeWeight = line
-  .substring(0, weightIndex)
-  .replace(/\x04/g, '')
-  .replace(/\(L\d?\)/gi, '')
-  .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b/g, '')
-  .trim();
-
-// 🔥 HARD CLEAN: strip everything before the actual name
-beforeWeight = beforeWeight.replace(/^.*?(?=[A-Z][A-Za-z']+\s+[A-Z])/, '');
-
-// 🔥 FIX SPLIT NAMES (Win N ... Juice)
-const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
-
-if (splitMatch) {
-  const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
-
-  if (combined.split(' ').length >= 2 && combined.length <= 25) {
-    return { name: combined, weight };
+  // Find the LAST 3-digit number (that's the weight)
+  const weightMatches = line.match(/\b(\d{3})\b/g);
+  if (!weightMatches || weightMatches.length === 0) {
+    return { name: '', weight: '' };
   }
-}
 
-// 🔥 FINAL NAME EXTRACTION
-const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']*(?:\s+[A-Z][A-Za-z']*)*)$/);
+  const weight = weightMatches[weightMatches.length - 1];
+  const weightIndex = line.lastIndexOf(weight);
 
-if (nameMatch) {
-  let name = cleanRawName(nameMatch[1]);
+  // Get everything before the weight
+  let beforeWeight = line
+    .substring(0, weightIndex)
+    .replace(/\x04/g, '')
+    .replace(/\(L\d?\)/gi, '')
+    .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b[\s\S]*?(?=[A-Z][A-Za-z'()]+(?:\s+[A-Z][A-Za-z'()]+)*\s+\d{3}\b)/gi, '')
+    .trim();
+
+  // 🔥 FIX SPLIT NAMES (Win N ... Juice)
+  const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
+
+  if (splitMatch) {
+    const combined = cleanRawName(splitMatch[1] + ' ' + splitMatch[2]);
+
+    if (combined.split(' ').length >= 2 && combined.length <= 25) {
+      return { name: combined, weight };
+    }
+  }
+
+  // 🔥 FINAL NAME EXTRACTION
+  const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']*(?:\s+[A-Z][A-Za-z']*)*)$/);
+
+  if (nameMatch) {
+    let name = cleanRawName(nameMatch[1]);
+    return { name, weight };
+  }
+
+  // 🔥 SAFE fallback
+  let cleaned = beforeWeight
+    .replace(/na \$\d+/gi, '')
+    .trim();
+
+  let name = cleanRawName(cleaned);
   return { name, weight };
-}
-
-// 🔥 SAFE fallback
-let cleaned = beforeWeight
-  .replace(/na \$\d+/gi, '')
-  .trim();
-
-let name = cleanRawName(cleaned);
-return { name, weight };
 };
 
   // ============================================================================
