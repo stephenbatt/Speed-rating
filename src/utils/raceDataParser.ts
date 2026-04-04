@@ -890,7 +890,7 @@ return { name, weight };
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
   
-  // 🔥 FIRST PASS — POSITIONAL (3rd row under post position)
+  // 🔥 FIRST PASS — STRICT POSITION (Row 3)
 if (lines.length >= 3) {
   const oddsLine = lines[2].trim();
 
@@ -900,7 +900,7 @@ if (lines.length >= 3) {
   if (cleanOdds) {
     return {
       odds: cleanOdds,
-      validation: { field: 'odds', value: cleanOdds, reason: 'POSITIONAL', confidence: 'HIGH' }
+      validation: { field: 'odds', value: cleanOdds, reason: 'ROW_3_POSITION', confidence: 'HIGH' }
     };
   }
 }
