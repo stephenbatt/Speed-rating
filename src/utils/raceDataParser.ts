@@ -890,20 +890,20 @@ return { name, weight };
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
   
-  // 🔥 FIRST PASS — standalone odds line
-  for (const line of lines) {
-    const trimmed = line.trim();
+  // 🔥 FIRST PASS — POSITIONAL (3rd row under post position)
+if (lines.length >= 3) {
+  const oddsLine = lines[2].trim();
 
-    if (isOddsFormat(trimmed)) {
-      const match = trimmed.match(/\b\d+\s*[-/]\s*\d+\b/);
-      const cleanOdds = match ? match[0].replace(/\s+/g, '') : '';
+  const match = oddsLine.match(/^\d+\s*[-/]\s*\d+/);
+  const cleanOdds = match ? match[0].replace(/\s+/g, '') : '';
 
-      return {
-        odds: cleanOdds,
-        validation: { field: 'odds', value: cleanOdds, reason: 'FOUND_STANDALONE', confidence: 'HIGH' }
-      };
-    }
+  if (cleanOdds) {
+    return {
+      odds: cleanOdds,
+      validation: { field: 'odds', value: cleanOdds, reason: 'POSITIONAL', confidence: 'HIGH' }
+    };
   }
+}
 
   // 🔥 SECOND PASS — odds inside PP lines
   for (const line of lines) {
