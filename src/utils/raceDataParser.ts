@@ -726,13 +726,16 @@ const extractHorseName = (lines: string[]): { name: string; weight: string; vali
     const weight = weightMatches[weightMatches.length - 1];
     const weightIndex = line.lastIndexOf(weight);
 
-    // Get everything before the weight
-    let beforeWeight = line
+   // Get everything before the weight
+let beforeWeight = line
   .substring(0, weightIndex)
   .replace(/\x04/g, '')
   .replace(/\(L\d?\)/gi, '')
   .replace(/\b(GP:|Distance:|Life:|AllWeather:)\b/g, '')
   .trim();
+
+// 🔥 HARD CLEAN: strip everything before the actual name
+beforeWeight = beforeWeight.replace(/^.*?(?=[A-Z][A-Za-z']+\s+[A-Z])/, '');
 
 // 🔥 FIX SPLIT NAMES (Win N ... Juice)
 const splitMatch = beforeWeight.match(/([A-Z][A-Za-z']+\s+[A-Z])[\s\S]*([A-Z][A-Za-z']+)$/);
@@ -745,17 +748,17 @@ if (splitMatch) {
   }
 }
 
-// Extract LAST clean capitalized phrase
-const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']*(?:'[A-Za-z]+)?(?:\s+[A-Z][A-Za-z']*(?:'[A-Za-z]+)?)*)$/);
+// 🔥 FINAL NAME EXTRACTION
+const nameMatch = beforeWeight.match(/([A-Z][A-Za-z']*(?:\s+[A-Z][A-Za-z']*)*)$/);
 
 if (nameMatch) {
   let name = cleanRawName(nameMatch[1]);
   return { name, weight };
 }
 
-// 🔥 SAFE fallback (ONLY for broken cases)
+// 🔥 SAFE fallback
 let cleaned = beforeWeight
-  .replace(/na \$\d+/gi, '')  // remove "na $0"
+  .replace(/na \$\d+/gi, '')
   .trim();
 
 let name = cleanRawName(cleaned);
