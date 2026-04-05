@@ -884,42 +884,28 @@ const extractNameFromLine = (line: string): { name: string; weight: string } => 
 
 
 /**
- * Extract odds ONLY from the 3rd row under post position.
- * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS.
- * If the odds are not at the START of row 3 → odds = "0".
+ * Extract morning‑line odds ONLY from the 3rd row under post position.
+ * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS. NO ZERO.
+ * Odds ALWAYS appear at the START of row 3.
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
 
-  // Row 3 = index 2
-  if (lines.length >= 3) {
-    const oddsLine = lines[2].trim();
+  // Row 3 = index 2 (ALWAYS contains the morning‑line odds)
+  const oddsLine = (lines[2] || "").trim();
 
-    // Morning-line odds ALWAYS appear at the START of row 3
-    // Format: 6-1, 10-1, 8-1, 12-1, etc.
-    const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
+  // Fractional odds ONLY (6-1, 10-1, 8-1, 12-1, etc.)
+  const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
 
-    if (match) {
-      const cleanOdds = match[1].replace(/\s+/g, '');
-      return {
-        odds: cleanOdds,
-        validation: {
-          field: 'odds',
-          value: cleanOdds,
-          reason: 'ROW_3_ONLY',
-          confidence: 'HIGH'
-        }
-      };
-    }
-  }
+  // Since odds are ALWAYS present, we return EXACTLY what we matched.
+  const cleanOdds = match ? match[1].replace(/\s+/g, '') : '';
 
-  // If row 3 does NOT start with fractional odds → NO ODDS
   return {
-    odds: '0',
+    odds: cleanOdds,
     validation: {
       field: 'odds',
-      value: '0',
-      reason: 'ODDS_NOT_FOUND_ROW_3',
-      confidence: 'LOW'
+      value: cleanOdds,
+      reason: 'ROW_3_ONLY_MORNING_LINE',
+      confidence: 'HIGH'
     }
   };
 };
