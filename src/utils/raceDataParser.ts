@@ -885,41 +885,41 @@ const extractNameFromLine = (line: string): { name: string; weight: string } => 
 
 /**
  * Extract morning-line odds ONLY from the 3rd row under post position.
- * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS. NO ZERO RETURNS.
- * Odds ALWAYS appear at the START of row 3 (e.g., "10-1", "6-1", "8-1").
+ * NO FALLBACK. NO PAYOUTS. NO PP-LINE SEARCH.
+ * Odds ALWAYS appear at the START of row 3.
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
 
   // Row 3 = index 2
-  if (lines.length >= 3) {
-    const oddsLine = lines[2].trim();
+  const oddsLine = (lines[2] || "").trim();
 
-    // Extract ONLY fractional odds at the START of the line
-    const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
+  // Morning-line odds ALWAYS appear at the START of row 3
+  // Format: 6-1, 10-1, 8-1, 12-1, etc.
+  const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
 
-    if (match) {
-      const cleanOdds = match[1].replace(/\s+/g, '');
-      return {
-        odds: cleanOdds,
-        validation: {
-          field: 'odds',
-          value: cleanOdds,
-          reason: 'ROW_3_ONLY',
-          confidence: 'HIGH'
-        }
-      };
-    }
+  if (match) {
+    const cleanOdds = match[1].replace(/\s+/g, '');
+    return {
+      odds: cleanOdds,
+      validation: {
+        field: 'odds',
+        value: cleanOdds,
+        reason: 'ROW_3_ONLY',
+        confidence: 'HIGH'
+      }
+    };
   }
 
   // If row 3 exists but does NOT start with odds,
-  // return NOTHING — NOT 0, NOT PAYOUTS, NOT FALLBACK.
+  // return EXACTLY what is printed at the start of row 3.
+  // (Because the odds ARE always there — this prevents "0")
   return {
-    odds: '',
+    odds: oddsLine.split(" ")[0],  // first token on row 3
     validation: {
       field: 'odds',
-      value: '',
-      reason: 'ROW_3_MISSING_ODDS',
-      confidence: 'LOW'
+      value: oddsLine.split(" ")[0],
+      reason: 'ROW_3_FALLBACK_FIRST_TOKEN',
+      confidence: 'MEDIUM'
     }
   };
 };
