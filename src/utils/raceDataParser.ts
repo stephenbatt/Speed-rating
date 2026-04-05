@@ -884,42 +884,45 @@ const extractNameFromLine = (line: string): { name: string; weight: string } => 
 
 
 /**
- * Extract morning-line odds ONLY from the 3rd row under post position.
- * NO FALLBACK. NO PAYOUTS. NO PP-LINE SEARCH.
- * Odds ALWAYS appear at the START of row 3.
+ * Extract morning‑line odds.
+ * RULE: Find the FIRST line that begins with a fractional odd (e.g., 10‑1, 8‑1, 3‑1).
+ * Ignore ALL other lines. Ignore payouts. Ignore PP lines. Ignore noise.
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
 
-  // Row 3 = index 2
-  const oddsLine = (lines[2] || "").trim();
+  // Pattern: fractional odds at the START of a line
+  const oddsPattern = /^(\d+\s*-\s*\d+)/;
 
-  // Morning-line odds ALWAYS appear at the START of row 3
-  // Format: 6-1, 10-1, 8-1, 12-1, etc.
-  const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
+  for (const line of lines) {
+    const trimmed = line.trim();
 
-  if (match) {
-    const cleanOdds = match[1].replace(/\s+/g, '');
-    return {
-      odds: cleanOdds,
-      validation: {
-        field: 'odds',
-        value: cleanOdds,
-        reason: 'ROW_3_ONLY',
-        confidence: 'HIGH'
-      }
-    };
+    // Skip empty lines
+    if (!trimmed) continue;
+
+    // Check if the line STARTS with odds
+    const match = trimmed.match(oddsPattern);
+    if (match) {
+      const cleanOdds = match[1].replace(/\s+/g, '');
+      return {
+        odds: cleanOdds,
+        validation: {
+          field: 'odds',
+          value: cleanOdds,
+          reason: 'FOUND_AT_LINE_START',
+          confidence: 'HIGH'
+        }
+      };
+    }
   }
 
-  // If row 3 exists but does NOT start with odds,
-  // return EXACTLY what is printed at the start of row 3.
-  // (Because the odds ARE always there — this prevents "0")
+  // If somehow no odds found (should never happen)
   return {
-    odds: oddsLine.split(" ")[0],  // first token on row 3
+    odds: '0',
     validation: {
       field: 'odds',
-      value: oddsLine.split(" ")[0],
-      reason: 'ROW_3_FALLBACK_FIRST_TOKEN',
-      confidence: 'MEDIUM'
+      value: '0',
+      reason: 'NO_ODDS_LINE_FOUND',
+      confidence: 'LOW'
     }
   };
 };
