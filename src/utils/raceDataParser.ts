@@ -884,42 +884,43 @@ const extractNameFromLine = (line: string): { name: string; weight: string } => 
 
 
 /**
- * Extract odds from block lines
+ * Extract odds ONLY from the 3rd row under post position.
+ * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS.
+ * If the odds are not at the START of row 3 → odds = "0".
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
-  
-  // 🔥 FIRST PASS — STRICT POSITION (Row 3)
-if (lines.length >= 3) {
-  const oddsLine = lines[2].trim();
 
-  const match = oddsLine.match(/^\d+\s*[-/]\s*\d+/);
-  const cleanOdds = match ? match[0].replace(/\s+/g, '') : '';
+  // Row 3 = index 2
+  if (lines.length >= 3) {
+    const oddsLine = lines[2].trim();
 
-  if (cleanOdds) {
-    return {
-      odds: cleanOdds,
-      validation: { field: 'odds', value: cleanOdds, reason: 'ROW_3_POSITION', confidence: 'HIGH' }
-    };
-  }
-}
+    // Morning-line odds ALWAYS appear at the START of row 3
+    // Format: 6-1, 10-1, 8-1, 12-1, etc.
+    const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
 
-  // 🔥 SECOND PASS — odds inside PP lines
-  for (const line of lines) {
-    if (hasDateToken(line)) {
-      const odds = extractOddsFromLine(line);
-      if (odds) {
-        return {
-          odds,
-          validation: { field: 'odds', value: odds, reason: 'FOUND_IN_PP_LINE', confidence: 'MEDIUM' }
-        };
-      }
+    if (match) {
+      const cleanOdds = match[1].replace(/\s+/g, '');
+      return {
+        odds: cleanOdds,
+        validation: {
+          field: 'odds',
+          value: cleanOdds,
+          reason: 'ROW_3_ONLY',
+          confidence: 'HIGH'
+        }
+      };
     }
   }
 
-  // 🔥 FALLBACK
+  // If row 3 does NOT start with fractional odds → NO ODDS
   return {
     odds: '0',
-    validation: { field: 'odds', value: '0', reason: 'ODDS_NOT_FOUND', confidence: 'LOW' }
+    validation: {
+      field: 'odds',
+      value: '0',
+      reason: 'ODDS_NOT_FOUND_ROW_3',
+      confidence: 'LOW'
+    }
   };
 };
 
