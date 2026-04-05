@@ -884,10 +884,9 @@ const extractNameFromLine = (line: string): { name: string; weight: string } => 
 
 
 /**
- * Extract odds ONLY from the 3rd row under post position.
- * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS.
- * Odds ALWAYS appear at the START of row 3.
- * Noise AFTER the odds is ignored.
+ * Extract morning-line odds ONLY from the 3rd row under post position.
+ * NO FALLBACK. NO PP-LINE SEARCH. NO PAYOUTS. NO ZERO RETURNS.
+ * Odds ALWAYS appear at the START of row 3 (e.g., "10-1", "6-1", "8-1").
  */
 const extractOdds = (lines: string[]): { odds: string; validation: ValidationReport } => {
 
@@ -896,12 +895,10 @@ const extractOdds = (lines: string[]): { odds: string; validation: ValidationRep
     const oddsLine = lines[2].trim();
 
     // Extract ONLY fractional odds at the START of the line
-    // Examples: 6-1, 10-1, 8-1, 12-1, 3-5, 7/2
     const match = oddsLine.match(/^(\d+\s*[-/]\s*\d+)/);
 
     if (match) {
       const cleanOdds = match[1].replace(/\s+/g, '');
-
       return {
         odds: cleanOdds,
         validation: {
@@ -914,14 +911,14 @@ const extractOdds = (lines: string[]): { odds: string; validation: ValidationRep
     }
   }
 
-  // You said odds are ALWAYS there — so this should never fire.
-  // But if row 3 is corrupted, we still return something valid.
+  // If row 3 exists but does NOT start with odds,
+  // return NOTHING — NOT 0, NOT PAYOUTS, NOT FALLBACK.
   return {
     odds: '',
     validation: {
       field: 'odds',
       value: '',
-      reason: 'ROW_3_MISSING_OR_CORRUPTED',
+      reason: 'ROW_3_MISSING_ODDS',
       confidence: 'LOW'
     }
   };
