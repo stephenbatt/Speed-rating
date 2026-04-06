@@ -121,8 +121,14 @@ export const calculateStatistics = async (): Promise<OverallStatistics> => {
     const speedTrends: SpeedTrend[] = [];
     
     allRaces.forEach((race: any) => {
-      const horses = race.horses || [];
-      totalHorses += horses.length;
+  const horses = race.horses || [];
+
+  // Apply Stephen scoring + negative ladder
+  if (horses.length > 0) {
+    race.rankings = applyNegativeLadder(horses);
+  }
+
+  totalHorses += horses.length;
       
       // Track breakdown
       const trackName = race.track_name || 'Unknown';
@@ -691,3 +697,103 @@ const calculateStatsForName = (
     tracks: Array.from(tracks),
   };
 };
+// ============================================================================
+// STEPHEN HANDICAPPING ENGINE
+// ============================================================================
+
+// Extract numeric Beyers from pastPerformances
+const extractBeyers = (pastPerformances) => {
+  return pastPerformances
+    .map(pp => parseInt(pp.speed, 10))
+    .filter(n => !isNaN(n) && n > 0);
+};
+
+// Determine pattern from last 3 Beyers
+const detectPattern = (speeds) => {
+  if (speeds.length < 3) return 'none';
+
+  const a = speeds[speeds.length - 3];
+  const b = speeds[speeds.length - 2];
+  const c = speeds[speeds.length - 1];
+
+  if (a < b && b < c) return 'improving';      // > > >
+  if (a < b && c > b) return 'hitMissHit';     // > < >
+  if (a > b && b > c) return 'backingUp';      // > < <
+  return 'none';
+};
+
+// Apply Stephen's +5 rule
+const applyPlusFive = (speeds) => {
+  const lastTwo = speeds.slice(-2);
+  if (lastTwo.length === 0) return speeds;
+
+  const bestLast2 = Math.max(...lastTwo);
+
+  const idx = speeds.lastIndexOf(bestLast2);
+  if (idx !== -1) speeds.splice(idx, 1);
+
+  speeds.push(bestLast2 + 5);
+  return speeds;
+};
+
+// Apply Stephen's one-time replacement rule
+const applyReplacement = (speeds, pattern) => {
+  if (pattern !== 'improving' && pattern !== 'hitMissHit') {
+    return speeds;
+  }
+
+  const sorted = [...speeds].sort((a, b) => b - a);
+  const top3 = sorted.slice(0, 3);
+  const weakest = top3[2];
+
+  const depth = pattern === 'improving' ? 4 : 5;
+  const candidateIndex = depth - 1;
+
+  if (sorted.length > candidateIndex) {
+    const candidate = sorted[candidateIndex];
+    if (candidate > weakest) {
+      const idxWeak = speeds.lastIndexOf(weakest);
+      if (idxWeak !== -1) speeds.splice(idxWeak, 1);
+      speeds.push(candidate);
+    }
+  }
+
+  return speeds;
+};
+
+// Final top 3 after all logic
+export const calculateStephenTop3 = (pastPerformances) => {
+  let speeds = extractBeyers(pastPerformances);
+  if (speeds.length === 0) return [];
+
+  const pattern = detectPattern(speeds);
+
+  speeds = applyPlusFive(speeds);
+  speeds = applyReplacement(speeds, pattern);
+
+  return speeds.sort((a, b) => b - a).slice(0, 3);
+};
+
+// Build total score (top 3 sum)
+export const calculateStephenTotalScore = (pastPerformances) => {
+  const top3 = calculateStephenTop3(pastPerformances);
+  return top3.reduce((sum, n) => sum + n, 0);
+};
+
+// Apply negative ladder across horses
+export const applyNegativeLadder = (horses) => {
+  const scored = horses.map(h => ({
+    ...h,
+    totalScore: calculateStephenTotalScore(h.pastPerformances)
+  }));
+
+  const maxScore = Math.max(...scored.map(h => h.totalScore));
+
+  return scored
+    .map(h => ({
+      ...h,
+      adjustedScore: h.totalScore - maxScore
+    }))
+    .sort((a, b) => b.totalScore - a.totalScore);
+};
+
