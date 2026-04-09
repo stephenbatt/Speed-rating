@@ -787,13 +787,17 @@ export const applyNegativeLadder = (horses) => {
     totalScore: calculateStephenTotalScore(h.pastPerformances)
   }));
 
-  const maxScore = Math.max(...scored.map(h => h.totalScore));
+  // Sort by raw score (highest first)
+  scored.sort((a, b) => b.totalScore - a.totalScore);
 
-  return scored
-    .map(h => ({
-      ...h,
-      adjustedScore: h.totalScore - maxScore
-    }))
-    .sort((a, b) => b.totalScore - a.totalScore);
+  // Stephen's negative ladder
+  const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
+
+  return scored.map((h, i) => ({
+    ...h,
+    adjustedScore: h.totalScore,
+    adjustment: ladder[i] || ladder[ladder.length - 1],
+    finalScore: h.totalScore + (ladder[i] || ladder[ladder.length - 1])
+  }));
 };
 
