@@ -1517,72 +1517,86 @@ export const parseRaceData = (rawText: string): RaceData => {
 };
 
 // ============================================================================
-// STEPHEN HANDICAPPING ENGINE (LOCAL COPY FOR UI)
+// STEPHEN IMPROVING-ONLY ENGINE (CLEAN FINAL VERSION)
+// Last 7 → Last 4 → Throw one away → Pick one up → Best of last 2 + 5 → Replace weakest
 // ============================================================================
 
-// Extract numeric Beyers
-const extractBeyersForRanking = (pps) => {
-  return pps
-    .map(pp => parseInt(pp.speed, 10))
+const computeStephenImprovingScore = (horse) => {
+  if (!horse.pastPerformances || horse.pastPerformances.length === 0) return 0;
+
+  // Speeds: most recent first, numeric only, up to last 7
+  const speeds = horse.pastPerformances
+    .slice(0, 7)
+    .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
     .filter(n => !isNaN(n) && n > 0);
-};
 
-// Detect pattern
-const detectPatternForRanking = (speeds) => {
-  if (speeds.length < 3) return 'none';
-  const a = speeds[speeds.length - 3];
-  const b = speeds[speeds.length - 2];
-  const c = speeds[speeds.length - 1];
-  if (a < b && b < c) return 'improving';
-  if (a < b && c > b) return 'hitMissHit';
-  if (a > b && b > c) return 'backingUp';
-  return 'none';
-};
+  if (speeds.length === 0) return 0;
 
-// +5 rule
-const applyPlusFiveForRanking = (speeds) => {
-  const lastTwo = speeds.slice(-2);
-  if (lastTwo.length === 0) return speeds;
-  const bestLast2 = Math.max(...lastTwo);
-  const idx = speeds.lastIndexOf(bestLast2);
-  if (idx !== -1) speeds.splice(idx, 1);
-  speeds.push(bestLast2 + 5);
-  return speeds;
-};
+  // 1) Today's Speed Rating = BEST of last 2 + 5
+  const lastTwo = speeds.slice(0, 2);
+  const baseForToday = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
+  const todayRating = baseForToday > 0 ? baseForToday + 5 : 0;
 
-// Replacement rule
-const applyReplacementForRanking = (speeds, pattern) => {
-  if (pattern !== 'improving' && pattern !== 'hitMissHit') return speeds;
-  const sorted = [...speeds].sort((a, b) => b - a);
-  const top3 = sorted.slice(0, 3);
-  const weakest = top3[2];
-  const depth = pattern === 'improving' ? 4 : 5;
-  const candidateIndex = depth - 1;
-  if (sorted.length > candidateIndex) {
-    const candidate = sorted[candidateIndex];
-    if (candidate > weakest) {
-      const idxWeak = speeds.lastIndexOf(weakest);
-      if (idxWeak !== -1) speeds.splice(idxWeak, 1);
-      speeds.push(candidate);
+  // 2) Last 4 outs for throw-one-away / pick-one-up
+  const lastFour = speeds.slice(0, 4);
+  const remaining = speeds.slice(4);
+
+  // If fewer than 4 outs, just use what we have
+  if (lastFour.length <= 3) {
+    const sortedBase = [...lastFour].sort((a, b) => b - a);
+    const topThreeBase = sortedBase.slice(0, 3);
+    const weakestBase = topThreeBase[topThreeBase.length - 1] || 0;
+
+    let finalTopThree = [...topThreeBase];
+    if (todayRating > weakestBase) {
+      finalTopThree[finalTopThree.length - 1] = todayRating;
+      finalTopThree.sort((a, b) => b - a);
+    }
+
+    return finalTopThree.reduce((sum, v) => sum + v, 0);
+  }
+
+  // 3) Candidate sets
+  const candidates = [];
+
+  // A) No throw-away
+  candidates.push([...lastFour]);
+
+  // B) Throw-one-away / pick-one-up
+  if (remaining.length > 0) {
+    const bestFromRemaining = Math.max(...remaining);
+    for (let i = 0; i < lastFour.length; i++) {
+      const copy = [...lastFour];
+      copy.splice(i, 1);
+      copy.push(bestFromRemaining);
+      candidates.push(copy);
     }
   }
-  return speeds;
-};
 
-// Final top 3
-const calculateStephenTop3ForRanking = (pps) => {
-  let speeds = extractBeyersForRanking(pps);
-  if (speeds.length === 0) return [];
-  const pattern = detectPatternForRanking(speeds);
-  speeds = applyPlusFiveForRanking(speeds);
-  speeds = applyReplacementForRanking(speeds, pattern);
-  return speeds.sort((a, b) => b - a).slice(0, 3);
-};
+  // 4) Pick best Top 3 from all candidate sets
+  let bestTopThree = [];
+  let bestSum = 0;
 
-// Total score
-const calculateStephenTotalScoreForRanking = (pps) => {
-  const top3 = calculateStephenTop3ForRanking(pps);
-  return top3.reduce((sum, n) => sum + n, 0);
+  for (const set of candidates) {
+    const sorted = [...set].sort((a, b) => b - a);
+    const topThree = sorted.slice(0, 3);
+    const sum = topThree.reduce((s, v) => s + v, 0);
+    if (sum > bestSum) {
+      bestSum = sum;
+      bestTopThree = topThree;
+    }
+  }
+
+  // 5) Replace weakest with today's +5 if better
+  if (todayRating > 0 && bestTopThree.length > 0) {
+    const weakest = bestTopThree[bestTopThree.length - 1];
+    if (todayRating > weakest) {
+      bestTopThree[bestTopThree.length - 1] = todayRating;
+      bestTopThree.sort((a, b) => b - a);
+    }
+  }
+
+  return bestTopThree.reduce((sum, v) => sum + v, 0);
 };
 
 // ============================================================================
@@ -1592,19 +1606,13 @@ const calculateStephenTotalScoreForRanking = (pps) => {
 export const calculateRankings = (horses) => {
   if (!horses || horses.length === 0) return [];
 
-  // Compute Stephen score
   const scored = horses.map(h => {
-    const totalScore = calculateStephenTotalScoreForRanking(h.pastPerformances);
+    const totalScore = computeStephenImprovingScore(h);
     return { horse: h, totalScore };
   });
 
-  // Highest score
-  const maxScore = Math.max(...scored.map(s => s.totalScore));
-
-  // Negative ladder (0, -5, -10, -15, -20, -25, -30...)
   const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
 
-  // Build ranking objects
   const rankings = scored
     .sort((a, b) => b.totalScore - a.totalScore)
     .map((s, i) => {
@@ -1614,11 +1622,9 @@ export const calculateRankings = (horses) => {
         name: s.horse.name,
         adjustedScore: s.totalScore,
         adjustment,
-        finalScore: s.totalScore + adjustment,
-        trustLevel: s.horse.trustScore?.level || 'UNKNOWN'
+        finalScore: s.totalScore + adjustment
       };
     });
 
   return rankings;
 };
-
