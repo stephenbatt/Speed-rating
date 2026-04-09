@@ -1543,3 +1543,110 @@ export const parseRaceData = (rawText: string): RaceData => {
     fingerprint
   };
 };
+
+// ============================================================================
+// STEPHEN HANDICAPPING ENGINE (LOCAL COPY FOR UI)
+// ============================================================================
+
+// Extract numeric Beyers
+const extractBeyersForRanking = (pps) => {
+  return pps
+    .map(pp => parseInt(pp.speed, 10))
+    .filter(n => !isNaN(n) && n > 0);
+};
+
+// Detect pattern
+const detectPatternForRanking = (speeds) => {
+  if (speeds.length < 3) return 'none';
+  const a = speeds[speeds.length - 3];
+  const b = speeds[speeds.length - 2];
+  const c = speeds[speeds.length - 1];
+  if (a < b && b < c) return 'improving';
+  if (a < b && c > b) return 'hitMissHit';
+  if (a > b && b > c) return 'backingUp';
+  return 'none';
+};
+
+// +5 rule
+const applyPlusFiveForRanking = (speeds) => {
+  const lastTwo = speeds.slice(-2);
+  if (lastTwo.length === 0) return speeds;
+  const bestLast2 = Math.max(...lastTwo);
+  const idx = speeds.lastIndexOf(bestLast2);
+  if (idx !== -1) speeds.splice(idx, 1);
+  speeds.push(bestLast2 + 5);
+  return speeds;
+};
+
+// Replacement rule
+const applyReplacementForRanking = (speeds, pattern) => {
+  if (pattern !== 'improving' && pattern !== 'hitMissHit') return speeds;
+  const sorted = [...speeds].sort((a, b) => b - a);
+  const top3 = sorted.slice(0, 3);
+  const weakest = top3[2];
+  const depth = pattern === 'improving' ? 4 : 5;
+  const candidateIndex = depth - 1;
+  if (sorted.length > candidateIndex) {
+    const candidate = sorted[candidateIndex];
+    if (candidate > weakest) {
+      const idxWeak = speeds.lastIndexOf(weakest);
+      if (idxWeak !== -1) speeds.splice(idxWeak, 1);
+      speeds.push(candidate);
+    }
+  }
+  return speeds;
+};
+
+// Final top 3
+const calculateStephenTop3ForRanking = (pps) => {
+  let speeds = extractBeyersForRanking(pps);
+  if (speeds.length === 0) return [];
+  const pattern = detectPatternForRanking(speeds);
+  speeds = applyPlusFiveForRanking(speeds);
+  speeds = applyReplacementForRanking(speeds, pattern);
+  return speeds.sort((a, b) => b - a).slice(0, 3);
+};
+
+// Total score
+const calculateStephenTotalScoreForRanking = (pps) => {
+  const top3 = calculateStephenTop3ForRanking(pps);
+  return top3.reduce((sum, n) => sum + n, 0);
+};
+
+// ============================================================================
+// PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
+// ============================================================================
+
+export const calculateRankings = (horses) => {
+  if (!horses || horses.length === 0) return [];
+
+  // Compute Stephen score
+  const scored = horses.map(h => {
+    const totalScore = calculateStephenTotalScoreForRanking(h.pastPerformances);
+    return { horse: h, totalScore };
+  });
+
+  // Highest score
+  const maxScore = Math.max(...scored.map(s => s.totalScore));
+
+  // Negative ladder (0, -5, -10, -15, -20, -25, -30...)
+  const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
+
+  // Build ranking objects
+  const rankings = scored
+    .sort((a, b) => b.totalScore - a.totalScore)
+    .map((s, i) => {
+      const adjustment = ladder[i] || ladder[ladder.length - 1];
+      return {
+        postPosition: s.horse.postPosition,
+        name: s.horse.name,
+        adjustedScore: s.totalScore,
+        adjustment,
+        finalScore: s.totalScore + adjustment,
+        trustLevel: s.horse.trustScore?.level || 'UNKNOWN'
+      };
+    });
+
+  return rankings;
+};
+
