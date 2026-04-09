@@ -57,17 +57,6 @@ export interface PastPerformance {
   parseError?: string;
 }
 
-export interface PatternAnalysis {
-  pattern: 'hit-miss' | 'improving' | 'declining' | 'backed-up' | 'inconsistent' | 'unknown';
-  hitMissSequence: ('hit' | 'miss')[];
-  prediction: 'hit' | 'miss' | 'unknown';
-  topThreeBeyer: number[];
-  topThreeBeyerSum: number;
-  bestLastTwo: number;
-  adjustedScore: number;
-  notes: string[];
-}
-
 export interface TrustScore {
   score: number;      // 0-100
   deductions: { reason: string; amount: number }[];
