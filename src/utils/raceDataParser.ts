@@ -1127,34 +1127,6 @@ export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAna
 };
 
 // ============================================================================
-// RANKINGS CALCULATION
-// ============================================================================
-
-export const calculateRankings = (horses: HorseData[]): HorseRanking[] => {
-  const rankings: HorseRanking[] = horses
-    .filter(h => h.patternAnalysis && h.trustScore && h.trustScore.level !== 'EXCLUDE')
-    .map(h => ({
-      postPosition: h.postPosition,
-      name: h.name,
-      adjustedScore: h.patternAnalysis!.adjustedScore,
-      adjustment: 0,
-      finalScore: h.patternAnalysis!.adjustedScore,
-      trustLevel: h.trustScore!.level
-    }))
-    .sort((a, b) => b.adjustedScore - a.adjustedScore);
-  
-  const adjustments = [-5, -10, -15, -20];
-  
-  for (let i = 0; i < rankings.length; i++) {
-    const adjustment = i < 4 ? adjustments[i] : -20;
-    rankings[i].adjustment = adjustment;
-    rankings[i].finalScore = rankings[i].adjustedScore + adjustment;
-  }
-  
-  return rankings;
-};
-
-// ============================================================================
 // MAIN PARSER - CRITICAL FIX FOR HORSE BOUNDARIES
 // ============================================================================
 
