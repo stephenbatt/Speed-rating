@@ -1588,13 +1588,15 @@ const computeStephenImprovingScore = (horse) => {
   }
 
   // 5) Replace weakest with today's +5 if better
-  if (todayRating > 0 && bestTopThree.length > 0) {
-    const weakest = bestTopThree[bestTopThree.length - 1];
-    if (todayRating > weakest) {
-      bestTopThree[bestTopThree.length - 1] = todayRating;
-      bestTopThree.sort((a, b) => b - a);
-    }
+if (todayRating > 0 && bestTopThree.length > 0) {
+  const weakest = bestTopThree[bestTopThree.length - 1];
+  if (todayRating > weakest) {
+    bestTopThree[bestTopThree.length - 1] = todayRating;
+    bestTopThree.sort((a, b) => b - a);
   }
+}
+
+// CLOSE THE OLD FUNCTION — THIS LINE IS REQUIRED
 };
 
 // NEW — Stephen Improving-Only Engine (backend)
@@ -1648,29 +1650,4 @@ const computeStephenImprovingScore = (horse: HorseData): number => {
   }
 
   return bestTopThree.reduce((sum, v) => sum + v, 0);
-};
-
-// FINAL RANKINGS
-export const calculateRankings = (horses: HorseData[]) => {
-  if (!horses || horses.length === 0) return [];
-
-  const scored = horses.map(h => {
-    const totalScore = computeStephenImprovingScore(h);
-    return { horse: h, totalScore };
-  });
-
-  const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
-
-  return scored
-    .sort((a, b) => b.totalScore - a.totalScore)
-    .map((s, i) => {
-      const adjustment = ladder[i] || ladder[ladder.length - 1];
-      return {
-        postPosition: s.horse.postPosition,
-        name: s.horse.name,
-        adjustedScore: s.totalScore,
-        adjustment,
-        finalScore: s.totalScore + adjustment
-      };
-    });
 };
