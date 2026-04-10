@@ -12,26 +12,80 @@ interface PatternAnalysisProps {
 const PatternAnalysis: React.FC<PatternAnalysisProps> = ({ horses, trackName, raceNumber }) => {
   const rankings = calculateRankings(horses);
 
-  // Compute Stephen Engine values for each horse
-  const computeBeyerProfile = (horse: HorseData) => {
-    const speeds = horse.pastPerformances
-      .slice(0, 7)
-      .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
-      .filter(n => !isNaN(n) && n > 0);
+  // NEW — Stephen Improving-Only Engine for UI
+const computeBeyerProfile = (horse: HorseData) => {
+  const speeds = horse.pastPerformances
+    .slice(0, 7)
+    .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
+    .filter(n => !isNaN(n) && n > 0);
 
-    const lastTwo = speeds.slice(0, 2);
-    const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
-    const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+  if (speeds.length === 0) {
+    return {
+      bestLastTwo: 0,
+      todayRating: 0,
+      topThree: [],
+      topThreeSum: 0
+    };
+  }
 
-    const candidates = [...speeds];
-    if (todayRating > 0) candidates.push(todayRating);
+  // 1) Best of last 2 + 5
+  const lastTwo = speeds.slice(0, 2);
+  const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
+  const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-    const sorted = [...candidates].sort((a, b) => b - a);
+  // 2) Last 4 outs
+  const lastFour = speeds.slice(0, 4);
+  const remaining = speeds.slice(4);
+
+  let bestTopThree = [];
+  let bestSum = 0;
+
+  // Candidate sets
+  const candidates = [];
+
+  // A) No throw-away
+  candidates.push([...lastFour]);
+
+  // B) Throw-one-away / pick-one-up
+  if (remaining.length > 0) {
+    const bestRemaining = Math.max(...remaining);
+    for (let i = 0; i < lastFour.length; i++) {
+      const copy = [...lastFour];
+      copy.splice(i, 1);
+      copy.push(bestRemaining);
+      candidates.push(copy);
+    }
+  }
+
+  // Evaluate candidates
+  for (const set of candidates) {
+    const sorted = [...set].sort((a, b) => b - a);
     const topThree = sorted.slice(0, 3);
-    const topThreeSum = topThree.reduce((sum, v) => sum + v, 0);
+    const sum = topThree.reduce((s, v) => s + v, 0);
+    if (sum > bestSum) {
+      bestSum = sum;
+      bestTopThree = topThree;
+    }
+  }
 
-    return { bestLastTwo, todayRating, topThree, topThreeSum };
+  // Replace weakest with today's +5 if better
+  if (todayRating > 0 && bestTopThree.length > 0) {
+    const weakest = bestTopThree[bestTopThree.length - 1];
+    if (todayRating > weakest) {
+      bestTopThree[bestTopThree.length - 1] = todayRating;
+      bestTopThree.sort((a, b) => b - a);
+    }
+  }
+
+  const topThreeSum = bestTopThree.reduce((sum, v) => sum + v, 0);
+
+  return {
+    bestLastTwo,
+    todayRating,
+    topThree: bestTopThree,
+    topThreeSum
   };
+};
 
   return (
     <div className="space-y-6">
