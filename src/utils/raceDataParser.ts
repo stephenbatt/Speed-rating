@@ -1599,11 +1599,61 @@ const computeStephenImprovingScore = (horse) => {
   return bestTopThree.reduce((sum, v) => sum + v, 0);
 };
 
-// ============================================================================
-// PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
-// ============================================================================
+// NEW — Stephen Improving-Only Engine (backend)
+const computeStephenImprovingScore = (horse: HorseData): number => {
+  const speeds = horse.pastPerformances
+    .slice(0, 7)
+    .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
+    .filter(n => !isNaN(n) && n > 0);
 
-export const calculateRankings = (horses) => {
+  if (speeds.length === 0) return 0;
+
+  const lastTwo = speeds.slice(0, 2);
+  const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
+  const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+
+  const lastFour = speeds.slice(0, 4);
+  const remaining = speeds.slice(4);
+
+  let bestTopThree = [];
+  let bestSum = 0;
+
+  const candidates = [];
+  candidates.push([...lastFour]);
+
+  if (remaining.length > 0) {
+    const bestRemaining = Math.max(...remaining);
+    for (let i = 0; i < lastFour.length; i++) {
+      const copy = [...lastFour];
+      copy.splice(i, 1);
+      copy.push(bestRemaining);
+      candidates.push(copy);
+    }
+  }
+
+  for (const set of candidates) {
+    const sorted = [...set].sort((a, b) => b - a);
+    const topThree = sorted.slice(0, 3);
+    const sum = topThree.reduce((s, v) => s + v, 0);
+    if (sum > bestSum) {
+      bestSum = sum;
+      bestTopThree = topThree;
+    }
+  }
+
+  if (todayRating > 0 && bestTopThree.length > 0) {
+    const weakest = bestTopThree[bestTopThree.length - 1];
+    if (todayRating > weakest) {
+      bestTopThree[bestTopThree.length - 1] = todayRating;
+      bestTopThree.sort((a, b) => b - a);
+    }
+  }
+
+  return bestTopThree.reduce((sum, v) => sum + v, 0);
+};
+
+// FINAL RANKINGS
+export const calculateRankings = (horses: HorseData[]) => {
   if (!horses || horses.length === 0) return [];
 
   const scored = horses.map(h => {
@@ -1613,7 +1663,7 @@ export const calculateRankings = (horses) => {
 
   const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
 
-  const rankings = scored
+  return scored
     .sort((a, b) => b.totalScore - a.totalScore)
     .map((s, i) => {
       const adjustment = ladder[i] || ladder[ladder.length - 1];
@@ -1625,6 +1675,4 @@ export const calculateRankings = (horses) => {
         finalScore: s.totalScore + adjustment
       };
     });
-
-  return rankings;
 };
