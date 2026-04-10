@@ -1596,9 +1596,6 @@ const computeStephenImprovingScore = (horse) => {
     }
   }
 
-  return bestTopThree.reduce((sum, v) => sum + v, 0);
-};
-
 // NEW — Stephen Improving-Only Engine (backend)
 const computeStephenImprovingScore = (horse: HorseData): number => {
   const speeds = horse.pastPerformances
