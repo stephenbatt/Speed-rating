@@ -1438,6 +1438,31 @@ export const formatHorseOutput = (horse: HorseData): string => {
   
   return output;
 };
+// Stephen Ranking Engine — uses the Improving-Only Score + Trust + Adjustments
+export const calculateRankings = (horses: HorseData[]) => {
+  return horses
+    .map(horse => {
+      const rawScore = computeStephenImprovingScore(horse);
+
+      // Adjustment ladder (negative buckets)
+      let adjustment = 0;
+      if (rawScore >= 240) adjustment = -30;
+      else if (rawScore >= 210) adjustment = -20;
+      else adjustment = -10;
+
+      const finalScore = rawScore + adjustment;
+
+      return {
+        postPosition: horse.postPosition,
+        name: horse.name,
+        adjustedScore: rawScore,
+        adjustment,
+        finalScore,
+        trustLevel: horse.trustScore?.level || 'OK'
+      };
+    })
+    .sort((a, b) => b.finalScore - a.finalScore);
+};
 
 export const formatRaceSummary = (horses: HorseData[]): string => {
   const rankings = calculateRankings(horses);
