@@ -1,4 +1,4 @@
-I don't know if this is the original file or not I'm just guessing import React from 'react';
+import React from 'react';
 import { HorseData, calculateRankings, HorseRanking } from '@/utils/raceDataParser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
