@@ -1568,5 +1568,28 @@ const computeStephenImprovingScore = (horse: HorseData): number => {
   let workingSet = [...lastFour];
 
   // 🔥 OPTION B — FORCE 3 NUMBERS
-  if (workingSet.length === 2) {
-    workingSet = [...working
+if (workingSet.length === 2) {
+  workingSet = [workingSet[0], workingSet[1], workingSet[1]];
+}
+
+if (workingSet.length === 1) {
+  workingSet = [workingSet[0], workingSet[0], workingSet[0]];
+}
+
+// STEP — Top 3
+let topThree = workingSet.sort((a, b) => b - a).slice(0, 3);
+
+// STEP — BEST of last 2 + 5
+const lastTwo = speeds.slice(0, 2);
+const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
+const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+
+// STEP — Replace weakest
+if (topThree.length === 3 && todayRating > topThree[2]) {
+  topThree[2] = todayRating;
+  topThree.sort((a, b) => b - a);
+}
+
+// FINAL
+return topThree.reduce((sum, v) => sum + v, 0);
+};
