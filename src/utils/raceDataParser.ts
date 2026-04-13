@@ -1361,7 +1361,6 @@ if (
   horse.name.includes('FOR THREE YEAR OLDS') ||
   horse.name.length > 40
 ) {
-  i = j - 1;
   continue;
 }
 
