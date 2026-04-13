@@ -1,7 +1,6 @@
 import React from 'react';
 import { HorseData, calculateRankings } from '@/utils/raceDataParser';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Award } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface PatternAnalysisProps {
   horses: HorseData[];
@@ -9,7 +8,7 @@ interface PatternAnalysisProps {
   raceNumber?: string;
 }
 
-/* ------------------ YOUR BEYER ENGINE (ADDED) ------------------ */
+/* ================= BEYER ENGINE (YOUR RULES EXACT) ================= */
 const computeBeyerProfile = (horse: HorseData) => {
   const speeds = horse.pastPerformances
     .slice(0, 7)
@@ -17,32 +16,33 @@ const computeBeyerProfile = (horse: HorseData) => {
     .filter(n => !isNaN(n) && n > 0);
 
   if (speeds.length === 0) {
-    return { todayRating: 0, topThree: [], topThreeSum: 0, finalScore: 0 };
+    return { todayRating: 0, topThree: [], topThreeSum: 0 };
   }
 
   // LAST 4
   let lastFour = speeds.slice(0, 4);
   const remaining = speeds.slice(4);
 
-  // THROW ONE AWAY
+  // THROW ONE AWAY (lowest)
   if (lastFour.length === 4) {
-    lastFour = lastFour.sort((a, b) => b - a);
+    lastFour = [...lastFour].sort((a, b) => b - a);
     lastFour.pop();
 
-    // PICK ONE UP
+    // PICK ONE UP (best of older)
     if (remaining.length > 0) {
       lastFour.push(Math.max(...remaining));
     }
   }
 
   // TOP 3
-  let topThree = lastFour.sort((a, b) => b - a).slice(0, 3);
+  let topThree = [...lastFour].sort((a, b) => b - a).slice(0, 3);
 
-  // TODAY BOOST
-  const bestLast2 = Math.max(...speeds.slice(0, 2));
-  const todayRating = bestLast2 + 5;
+  // TODAY BOOST (+5 to best of last 2)
+  const last2 = speeds.slice(0, 2);
+  const bestLast2 = last2.length ? Math.max(...last2) : 0;
+  const todayRating = bestLast2 > 0 ? bestLast2 + 5 : 0;
 
-  // REPLACE WEAKEST
+  // REPLACE weakest (NOT add)
   if (topThree.length === 3 && todayRating > topThree[2]) {
     topThree[2] = todayRating;
     topThree.sort((a, b) => b - a);
@@ -50,81 +50,90 @@ const computeBeyerProfile = (horse: HorseData) => {
 
   const topThreeSum = topThree.reduce((s, n) => s + n, 0);
 
-  return { todayRating, topThree, topThreeSum, finalScore: topThreeSum };
+  return { todayRating, topThree, topThreeSum };
 };
-/* --------------------------------------------------------------- */
+/* =================================================================== */
 
 const PatternAnalysis: React.FC<PatternAnalysisProps> = ({ horses, trackName, raceNumber }) => {
-  const rankings = calculateRankings(horses);
+
+  // 🔥 REMOVE PHANTOM HORSE
+  const cleanHorses = horses.filter(h => 
+    h.name && 
+    !h.name.includes('Purse') &&
+    !h.name.includes('FOR THREE')
+  );
+
+  const rankings = calculateRankings(cleanHorses);
 
   return (
     <div className="space-y-6">
-      {/* Race Header */}
+
+      {/* HEADER */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold">
           {trackName || 'Race'} {raceNumber ? `- Race ${raceNumber}` : ''}
         </h2>
         <p className="text-gray-500">Pattern Analysis & Rankings</p>
       </div>
 
-      {/* Rankings Summary */}
-      <Card className="border-2 border-emerald-500">
-        <CardHeader className="bg-emerald-50">
-          <CardTitle className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-emerald-600" />
-            Final Rankings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Post</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Horse</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Raw Score</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Adjustment</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Final</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankings.map((r, index) => {
-                  const horse = horses.find(h => h.postPosition === r.postPosition);
+      {/* CARDS */}
+      {rankings.map((r) => {
+        const horse = cleanHorses.find(h => h.postPosition === r.postPosition);
+        if (!horse) return null;
 
-                  /* ---- CONNECT YOUR ENGINE HERE ---- */
-                  const { todayRating, topThree, topThreeSum, finalScore } =
-                    computeBeyerProfile(horse!);
-                  /* ---------------------------------- */
+        const { todayRating, topThree, topThreeSum } = computeBeyerProfile(horse);
 
-                  return (
-                    <tr key={r.postPosition} className="border-b">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{r.postPosition}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{horse?.name}</td>
+        return (
+          <Card key={horse.postPosition} className="overflow-hidden">
 
-                      {/* Raw Score */}
-                      <td className="px-4 py-3 text-sm text-right font-mono">
-                        {topThreeSum || '—'}
-                      </td>
+            {/* TOP HALF */}
+            <CardHeader className="bg-slate-800 text-white py-3">
+              <div className="flex justify-between items-center">
 
-                      {/* Adjustment */}
-                      <td className="px-4 py-3 text-sm text-right font-mono">
-                        {todayRating || '—'}
-                      </td>
+                {/* POST + NAME */}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full font-bold">
+                    {horse.postPosition}
+                  </div>
 
-                      {/* Final */}
-                      <td className="px-4 py-3 text-sm text-right font-mono font-bold">
-                        {finalScore || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  <div>
+                    <div className="font-bold text-lg">{horse.name}</div>
+                    <div className="text-sm text-gray-300">{horse.odds}</div>
+                  </div>
+                </div>
+
+                {/* FINAL SCORE */}
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{topThreeSum}</div>
+                  <div className="text-xs text-gray-300">Final</div>
+                </div>
+
+              </div>
+            </CardHeader>
+
+            {/* BOTTOM HALF — SHOW YOUR WORK */}
+            <CardContent className="p-4 space-y-2 text-sm">
+
+              <div className="flex justify-between">
+                <span>Today's (+5)</span>
+                <span className="font-bold">{todayRating || '—'}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Top 3 Sum</span>
+                <span className="font-bold">{topThreeSum || '—'}</span>
+              </div>
+
+              <div className="text-center text-gray-600">
+                Top 3: {topThree.length ? topThree.join(' + ') : '—'}
+              </div>
+
+            </CardContent>
+
+          </Card>
+        );
+      })}
+
     </div>
   );
 };
