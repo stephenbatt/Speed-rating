@@ -1354,21 +1354,28 @@ const horse: HorseData = {
   isFirstTimeStarter
 };
 
-// 🚫 PHANTOM HORSE FILTER
+// 🚫 PHANTOM HORSE FILTER (FINAL SAFE VERSION)
 if (
   !horse.name ||
   horse.name.includes('Purse') ||
   horse.name.includes('FOR THREE YEAR OLDS') ||
   horse.name.length > 40
 ) {
-  i = j;        // skip this block
-  continue;     // do NOT push
+  i = j;   // jump to next block
+  continue;
 }
 
-// ✅ ONLY REAL HORSES GET PUSHED
+// 🚫 DUPLICATE PROTECTION (NEW — CRITICAL)
+const alreadyExists = horses.some(h => h.postPosition === horse.postPosition);
+if (alreadyExists) {
+  i = j;
+  continue;
+}
+
+// ✅ ONLY REAL HORSES
 horses.push(horse);
 
-// CRITICAL: MOVE TO NEXT HORSE BLOCK
+// 🔥 MOVE TO NEXT HORSE BLOCK (DO NOT TOUCH THIS AGAIN)
 i = j;
 continue;
 
