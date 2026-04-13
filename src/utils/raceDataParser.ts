@@ -1372,12 +1372,16 @@ if (alreadyExists) {
   continue;
 }
 
-// ✅ ONLY REAL HORSES
+// ONLY REAL HORSES
 horses.push(horse);
 
-// 🔥 MOVE TO NEXT HORSE BLOCK (DO NOT TOUCH THIS AGAIN)
+// MOVE TO NEXT HORSE BLOCK
 i = j;
 continue;
+}   // <-- CLOSES while (i < lines.length)
+
+return horses;
+}   // <-- CLOSES parseSimpleFormat function
 
 // ============================================================================
 // OUTPUT FORMATTING
