@@ -1541,7 +1541,6 @@ export const parseRaceData = (rawText: string): RaceData => {
   };
 };
 
-// NEW — Stephen Improving-Only Engine (backend)
 const computeStephenImprovingScore = (horse: HorseData): number => {
   const speeds = horse.pastPerformances
     .slice(0, 7)
@@ -1550,46 +1549,38 @@ const computeStephenImprovingScore = (horse: HorseData): number => {
 
   if (speeds.length === 0) return 0;
 
+  // STEP 1: last 4
+  let lastFour = speeds.slice(0, 4);
+
+  // STEP 2: throw away lowest
+  if (lastFour.length === 4) {
+    lastFour.sort((a, b) => b - a);
+    lastFour.pop();
+  }
+
+  // STEP 3: pick up best remaining
+  const remaining = speeds.slice(4);
+  if (remaining.length > 0) {
+    lastFour.push(Math.max(...remaining));
+  }
+
+  // STEP 4: top 3
+  let topThree = lastFour.sort((a, b) => b - a).slice(0, 3);
+
+  // STEP 5: today boost
   const lastTwo = speeds.slice(0, 2);
   const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
   const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-  const lastFour = speeds.slice(0, 4);
-  const remaining = speeds.slice(4);
-
-  let bestTopThree = [];
-  let bestSum = 0;
-
-  const candidates = [];
-  candidates.push([...lastFour]);
-
-  if (remaining.length > 0) {
-    const bestRemaining = Math.max(...remaining);
-    for (let i = 0; i < lastFour.length; i++) {
-      const copy = [...lastFour];
-      copy.splice(i, 1);
-      copy.push(bestRemaining);
-      candidates.push(copy);
-    }
-  }
-
-  for (const set of candidates) {
-    const sorted = [...set].sort((a, b) => b - a);
-    const topThree = sorted.slice(0, 3);
-    const sum = topThree.reduce((s, v) => s + v, 0);
-    if (sum > bestSum) {
-      bestSum = sum;
-      bestTopThree = topThree;
-    }
-  }
-
-  if (todayRating > 0 && bestTopThree.length > 0) {
-    const weakest = bestTopThree[bestTopThree.length - 1];
+  // STEP 6: replace weakest
+  if (todayRating > 0 && topThree.length === 3) {
+    const weakest = topThree[2];
     if (todayRating > weakest) {
-      bestTopThree[bestTopThree.length - 1] = todayRating;
-      bestTopThree.sort((a, b) => b - a);
+      topThree[2] = todayRating;
+      topThree.sort((a, b) => b - a);
     }
   }
 
-  return bestTopThree.reduce((sum, v) => sum + v, 0);
+  // FINAL
+  return topThree.reduce((sum, v) => sum + v, 0);
 };
