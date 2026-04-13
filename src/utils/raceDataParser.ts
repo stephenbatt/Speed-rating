@@ -1330,29 +1330,43 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       
       // Build horse data object
       const horse: HorseData = {
-        postPosition,
-        color,
-        odds,
-        name: name || `Horse #${postPosition}`,
-        weight,
-        medication: name.includes('(L)') ? 'L' : '',
-        trainer,
-        trainerStats: '',
-        jockey,
-        jockeyStats: '',
-        owner,
-        silks,
-        breeding,
-        lifeStats,
-        lifeStarts,
-        turfStats,
-        dirtStats,
-        distanceStats: '',
-        pastPerformances,
-        validation,
-        rawBlock,
-        isFirstTimeStarter
-      };
+  postPosition,
+  color,
+  odds,
+  name: name || `Horse #${postPosition}`,
+  weight,
+  medication: name.includes('(L)') ? 'L' : '',
+  trainer,
+  trainerStats: '',
+  jockey,
+  jockeyStats: '',
+  owner,
+  silks,
+  breeding,
+  lifeStats,
+  lifeStarts,
+  turfStats,
+  dirtStats,
+  distanceStats: '',
+  pastPerformances,
+  validation,
+  rawBlock,
+  isFirstTimeStarter
+};
+
+// 🚫 KILL PHANTOM HORSES (MUST BE HERE)
+if (
+  !horse.name ||
+  horse.name.includes('Purse') ||
+  horse.name.includes('FOR THREE YEAR OLDS') ||
+  horse.name.length > 40
+) {
+  i = j - 1;
+  continue;
+}
+
+// ✅ ONLY REAL HORSES GET PUSHED
+horses.push(horse);
       
       // Analyze patterns (only if has races)
       horse.patternAnalysis = analyzePatterns(pastPerformances);
