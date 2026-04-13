@@ -1361,9 +1361,9 @@ if (
   horse.name.includes('FOR THREE YEAR OLDS') ||
   horse.name.length > 40
 ) {
-  i++;   // 🔥 MOVE FORWARD SAFELY
-  continue;
-}
+  horses.push(horse);
+i = j;   // <-- CRITICAL: jump to next horse block
+continue;
 
 // ✅ ONLY REAL HORSES GET PUSHED
 horses.push(horse);
