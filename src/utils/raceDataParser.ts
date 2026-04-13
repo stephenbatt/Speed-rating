@@ -1328,8 +1328,8 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       }
 
       
-      // Build horse data object
-      const horse: HorseData = {
+     // Build horse data object
+const horse: HorseData = {
   postPosition,
   color,
   odds,
@@ -1354,35 +1354,23 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
   isFirstTimeStarter
 };
 
-// 🚫 KILL PHANTOM HORSES (SAFE VERSION)
+// 🚫 PHANTOM HORSE FILTER
 if (
   !horse.name ||
   horse.name.includes('Purse') ||
   horse.name.includes('FOR THREE YEAR OLDS') ||
   horse.name.length > 40
 ) {
-  horses.push(horse);
-i = j;   // <-- CRITICAL: jump to next horse block
-continue;
+  i = j;        // skip this block
+  continue;     // do NOT push
+}
 
 // ✅ ONLY REAL HORSES GET PUSHED
 horses.push(horse);
-      
-      // Analyze patterns (only if has races)
-      horse.patternAnalysis = analyzePatterns(pastPerformances);
-      
-      // Calculate trust score
-      horse.trustScore = calculateTrustScore(horse);
-      
-      horses.push(horse);
-      i = j - 1;
-    }
-    
-    i++;
-  }
-  
-  return horses;
-};
+
+// CRITICAL: MOVE TO NEXT HORSE BLOCK
+i = j;
+continue;
 
 // ============================================================================
 // OUTPUT FORMATTING
