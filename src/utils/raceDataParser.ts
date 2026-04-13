@@ -1562,47 +1562,64 @@ const computeStephenImprovingScore = (horse: HorseData): number => {
 
   if (speeds.length === 0) return 0;
 
-  // STEP 1 — last 4 (or whatever exists)
+  // 🧠 1 RACE
+  if (speeds.length === 1) {
+    return speeds[0] * 3;
+  }
+
+  // 🧠 2 RACES (YOUR RULE — MUST FORCE 3)
+  if (speeds.length === 2) {
+    const best = Math.max(...speeds);
+    const today = best + 5;
+
+    let top3 = [speeds[0], speeds[1], speeds[1]];
+
+    if (today > top3[2]) {
+      top3[2] = today;
+    }
+
+    return top3.reduce((a, b) => a + b, 0);
+  }
+
+  // 🧠 STEP 1 — LAST 4
   let lastFour = speeds.slice(0, 4);
 
-  // STEP 2 — throw away lowest if 4 exist
+  // 🧠 STEP 2 — THROW AWAY LOWEST
   if (lastFour.length === 4) {
     lastFour.sort((a, b) => b - a);
     lastFour.pop();
   }
 
-  // STEP 3 — pick one up if available
+  // 🧠 STEP 3 — PICK UP BEST REMAINING
   const remaining = speeds.slice(4);
   if (remaining.length > 0) {
     lastFour.push(Math.max(...remaining));
   }
 
-  // STEP 4 — build working set
-  let workingSet = [...lastFour];
+  // 🧠 STEP 4 — FORCE 3 (YOUR RULE)
+  let working = [...lastFour];
 
-  // 🔥 OPTION B — FORCE 3 NUMBERS
-if (workingSet.length === 2) {
-  workingSet = [workingSet[0], workingSet[1], workingSet[1]];
-}
+  if (working.length === 2) {
+    working = [working[0], working[1], working[1]];
+  }
 
-if (workingSet.length === 1) {
-  workingSet = [workingSet[0], workingSet[0], workingSet[0]];
-}
+  if (working.length === 1) {
+    working = [working[0], working[0], working[0]];
+  }
 
-// STEP — Top 3
-let topThree = workingSet.sort((a, b) => b - a).slice(0, 3);
+  // 🧠 STEP 5 — TOP 3
+  let top3 = working.sort((a, b) => b - a).slice(0, 3);
 
-// STEP — BEST of last 2 + 5
-const lastTwo = speeds.slice(0, 2);
-const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
-const todayRating = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+  // 🧠 STEP 6 — BEST OF LAST 2 + 5
+  const lastTwo = speeds.slice(0, 2);
+  const bestLastTwo = Math.max(...lastTwo);
+  const today = bestLastTwo + 5;
 
-// STEP — Replace weakest
-if (topThree.length === 3 && todayRating > topThree[2]) {
-  topThree[2] = todayRating;
-  topThree.sort((a, b) => b - a);
-}
+  // 🧠 STEP 7 — REPLACE WEAKEST
+  if (today > top3[2]) {
+    top3[2] = today;
+    top3.sort((a, b) => b - a);
+  }
 
-// FINAL
-return topThree.reduce((sum, v) => sum + v, 0);
+  return top3.reduce((sum, n) => sum + n, 0);
 };
