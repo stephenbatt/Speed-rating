@@ -1354,13 +1354,14 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
   isFirstTimeStarter
 };
 
-// 🚫 KILL PHANTOM HORSES (MUST BE HERE)
+// 🚫 KILL PHANTOM HORSES (SAFE VERSION)
 if (
   !horse.name ||
   horse.name.includes('Purse') ||
   horse.name.includes('FOR THREE YEAR OLDS') ||
   horse.name.length > 40
 ) {
+  i++;   // 🔥 MOVE FORWARD SAFELY
   continue;
 }
 
