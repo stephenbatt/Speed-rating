@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SavedRace, getSavedRaces, searchRaces, deleteRace } from '@/lib/raceStorage';
-import { HorseData } from '@/utils/raceDataParser';
+import { HorseData, analyzePatterns } from '@/utils/raceDataParser';
 import { getRaceResult } from '@/lib/resultsStorage';
 import RaceResultsEntry from './RaceResultsEntry';
 import { 
