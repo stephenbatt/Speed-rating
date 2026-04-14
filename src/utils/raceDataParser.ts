@@ -211,3 +211,19 @@ export const formatRaceSummary = (horses: HorseData[]): string => {
 
   return output;
 };
+
+// ================= HORSE OUTPUT =================
+export const formatHorseOutput = (horse: HorseData): string => {
+  let output = `Post: ${horse.postPosition}\n`;
+  output += `Horse: ${horse.name}\n`;
+  output += `Odds: ${horse.odds}\n`;
+
+  if (horse.pastPerformances.length > 0) {
+    output += `Beyers: `;
+    output += horse.pastPerformances
+      .map(pp => pp.speed)
+      .join(', ');
+  }
+
+  return output;
+};
