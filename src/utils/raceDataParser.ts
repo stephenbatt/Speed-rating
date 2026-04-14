@@ -54,19 +54,20 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       const oddsMatch = l.match(/\d+-\d+/);
       if (oddsMatch) odds = oddsMatch[0];
 
-      // ONLY VALID RACE LINES (DATE FILTER)
-      if (/^[A-Z]\d{2}[A-Za-z]{3}\d{2}/.test(l)) {
-        const nums = l
-          .split(/\s+/)
-          .map(x => parseInt(x, 10))
-          .filter(n => !isNaN(n));
+      // EXTRACT BEYER (LESS STRICT — FIXES PARSE BUTTON)
+const nums = l
+  .split(/\s+/)
+  .map(x => parseInt(x, 10))
+  .filter(n => !isNaN(n));
 
-        if (nums.length > 0) {
-          const beyer = nums[nums.length - 1];
-          pastPerformances.push({ speed: beyer.toString() });
-        }
-      }
+// Only keep reasonable Beyer values
+if (nums.length > 0) {
+  const beyer = nums[nums.length - 1];
 
+  if (beyer > 30 && beyer < 150) {
+    pastPerformances.push({ speed: beyer.toString() });
+  }
+}
       j++;
     }
 
