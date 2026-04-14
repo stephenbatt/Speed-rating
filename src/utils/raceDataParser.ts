@@ -227,3 +227,28 @@ export const formatHorseOutput = (horse: HorseData): string => {
 
   return output;
 };
+
+// ================= PATTERN ANALYSIS (FIX BUILD) =================
+export const analyzePatterns = (horses: HorseData[]) => {
+  return horses.map(horse => {
+    const speeds = horse.pastPerformances
+      .map(pp => parseInt(pp.speed, 10))
+      .filter(n => !isNaN(n));
+
+    let pattern = 'Unknown';
+
+    if (speeds.length >= 3) {
+      const [a, b, c] = speeds;
+
+      if (a >= b && b >= c) pattern = 'Improving';
+      else if (a < b && b > c) pattern = 'Hit/Miss';
+      else pattern = 'Mixed';
+    }
+
+    return {
+      postPosition: horse.postPosition,
+      name: horse.name,
+      pattern
+    };
+  });
+};
