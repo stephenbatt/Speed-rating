@@ -1052,15 +1052,21 @@ export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAna
     };
   }
   
-  const sortedSpeeds = [...validSpeeds].sort((a, b) => b - a);
-  const topThreeBeyer = sortedSpeeds.slice(0, 3);
-  const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
-  
-  const lastTwoSpeeds = validSpeeds.slice(0, 2);
-  const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
-  const adjustedScore = bestLastTwo + 5 + topThreeBeyerSum;
-  
-  const median = sortedSpeeds[Math.floor(sortedSpeeds.length / 2)];
+  // 🔥 TODAY SPEED
+const lastTwoSpeeds = validSpeeds.slice(0, 2);
+const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
+const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+
+// 🔥 COMBINE WITH ALL SPEEDS
+const pool = [...validSpeeds, todaySpeed];
+
+// 🔥 TRUE TOP 3
+const topThreeBeyer = pool.sort((a, b) => b - a).slice(0, 3);
+const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
+const median = validSpeeds.sort((a, b) => b - a)[Math.floor(validSpeeds.length / 2)];
+
+// 🔥 FINAL SCORE
+const adjustedScore = topThreeBeyerSum;
   
   for (let i = 0; i < validSpeeds.length && i < 7; i++) {
     hitMissSequence.push(validSpeeds[i] >= median ? 'hit' : 'miss');
