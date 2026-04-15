@@ -1,3 +1,4 @@
+import { applyNegativeLadder, calculateStephenTotalScore } from '@/lib/statisticsStorage';
 // ================= TYPES =================
 export interface PastPerformance {
   speed: string;
@@ -101,8 +102,6 @@ if (nums.length > 0) {
 
   return horses;
 };
-
-import { applyNegativeLadder, calculateStephenTotalScore } from '@/lib/statisticsStorage';
 
 export const calculateRankings = (horses: HorseData[]): HorseRanking[] => {
   const scored = horses.map(h => ({
