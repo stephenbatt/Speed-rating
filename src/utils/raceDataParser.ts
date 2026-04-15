@@ -30,7 +30,7 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
   while (i < lines.length) {
     const line = lines[i];
 
-    const match = line.match(/^(\d+)\s+/);
+    const match = line.match(/^(\d+)$/);
     if (!match) {
       i++;
       continue;
