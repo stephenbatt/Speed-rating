@@ -102,92 +102,24 @@ if (nums.length > 0) {
   return horses;
 };
 
-// ================= YOUR ENGINE =================
-const computeStephenImprovingScore = (horse: HorseData): number => {
-  const speeds = horse.pastPerformances
-    .slice(0, 7)
-    .map(pp => parseInt(pp.speed, 10))
-    .filter(n => !isNaN(n) && n > 0);
+import { applyNegativeLadder, calculateStephenTotalScore } from '@/lib/statisticsStorage';
 
-  if (speeds.length === 0) return 0;
-
-  // 🔥 1 RACE
-  if (speeds.length === 1) {
-    return speeds[0] * 3;
-  }
-
-  // 🔥 2 RACES (FORCE 3 NUMBERS)
-  if (speeds.length === 2) {
-    const best = Math.max(...speeds);
-    const today = best + 5;
-
-    let top3 = [speeds[0], speeds[1], speeds[1]];
-
-    if (today > top3[2]) {
-      top3[2] = today;
-    }
-
-    return top3.reduce((a, b) => a + b, 0);
-  }
-
-  // 🔥 NORMAL FLOW
-  let lastFour = speeds.slice(0, 4);
-
-  if (lastFour.length === 4) {
-    lastFour.sort((a, b) => b - a);
-    lastFour.pop(); // throw away weakest
-  }
-
-  const remaining = speeds.slice(4);
-  if (remaining.length > 0) {
-    lastFour.push(Math.max(...remaining));
-  }
-
-  let working = [...lastFour];
-
-  // FORCE 3 NUMBERS ALWAYS
-  if (working.length === 2) {
-    working = [working[0], working[1], working[1]];
-  }
-
-  if (working.length === 1) {
-    working = [working[0], working[0], working[0]];
-  }
-
-  let top3 = working.sort((a, b) => b - a).slice(0, 3);
-
-  // 🔥 BEST OF LAST 2 + 5
-  const lastTwo = speeds.slice(0, 2);
-  const bestLastTwo = Math.max(...lastTwo);
-  const today = bestLastTwo + 5;
-
-  if (today > top3[2]) {
-    top3[2] = today;
-    top3.sort((a, b) => b - a);
-  }
-
-  return top3.reduce((sum, n) => sum + n, 0);
-};
-
-// ================= RANKINGS =================
 export const calculateRankings = (horses: HorseData[]): HorseRanking[] => {
-  return horses
-    .map(horse => {
-      const rawScore = computeStephenImprovingScore(horse);
+  const scored = horses.map(h => ({
+    ...h,
+    totalScore: calculateStephenTotalScore(h.pastPerformances),
+  }));
 
-      let adjustment = 0;
-      if (rawScore >= 240) adjustment = -30;
-      else if (rawScore >= 210) adjustment = -20;
-      else adjustment = -10;
+  const laddered = applyNegativeLadder(scored);
 
-      return {
-        postPosition: horse.postPosition,
-        name: horse.name,
-        adjustedScore: rawScore,
-        adjustment,
-        finalScore: rawScore + adjustment
-      };
-    })
+  return laddered
+    .map(h => ({
+      postPosition: h.postPosition,
+      name: h.name,
+      adjustedScore: h.totalScore,
+      adjustment: h.adjustment,
+      finalScore: h.finalScore,
+    }))
     .sort((a, b) => b.finalScore - a.finalScore);
 };
 
