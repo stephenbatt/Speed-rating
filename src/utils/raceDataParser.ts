@@ -1067,93 +1067,83 @@ const median = [...validSpeeds].sort((a, b) => b - a)[Math.floor(validSpeeds.len
 
 // 🔥 FINAL SCORE
 const adjustedScore = topThreeBeyerSum;
-  
-  // 🔥 CORRECT HIT/MISS LOGIC (OLD → NEW)
+
+// 🔥 BUILD HIT / MISS + IMPROVING (YOUR RULE)
 const speeds = [...validSpeeds].slice(0, 7).reverse(); // oldest → newest
 const sequence = [];
 
+// STEP 1: HIT / MISS
 for (let i = 0; i < speeds.length - 1; i++) {
   const current = speeds[i];
   const next = speeds[i + 1];
 
-  if (next > current) {
-    sequence.push('miss'); // improved after → missed today
+  if (current > next) {
+    sequence.push('hit');
   } else {
-    sequence.push('hit');  // declined after → hit today
+    sequence.push('miss');
   }
 }
 
-// Handle most recent race
-const last = speeds[speeds.length - 1];
-const prev = speeds[speeds.length - 2];
+// STEP 2: HANDLE LAST RACE
+if (speeds.length >= 2) {
+  const last = speeds[speeds.length - 1];
+  const prev = speeds[speeds.length - 2];
 
-if (last >= prev) {
-  sequence.push('hit');
-} else {
-  sequence.push('miss');
+  if (last >= prev) {
+    sequence.push('hit');
+  } else {
+    sequence.push('miss');
+  }
 }
 
-// Flip back to newest-first for UI
+// STEP 3: APPLY IMPROVING (YOUR RULE)
+for (let i = 0; i < speeds.length - 2; i++) {
+  if (
+    speeds[i + 1] > speeds[i] &&
+    speeds[i + 2] > speeds[i + 1]
+  ) {
+    for (let j = i; j < sequence.length; j++) {
+      sequence[j] = 'improving';
+    }
+    break;
+  }
+}
+
+// STEP 4: SEND TO UI
 hitMissSequence.push(...sequence.reverse());
-  
-  let pattern: PatternAnalysis['pattern'] = 'inconsistent';
-  let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
-  
-  let alternatingCount = 0;
-  for (let i = 0; i < hitMissSequence.length - 1; i++) {
-    if (hitMissSequence[i] !== hitMissSequence[i + 1]) {
-      alternatingCount++;
-    }
+
+// 🔥 PATTERN TYPE
+let pattern: PatternAnalysis['pattern'] = 'inconsistent';
+let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
+
+let alternatingCount = 0;
+for (let i = 0; i < hitMissSequence.length - 1; i++) {
+  if (hitMissSequence[i] !== hitMissSequence[i + 1]) {
+    alternatingCount++;
   }
-  
-  if (hitMissSequence.length >= 3 && alternatingCount >= hitMissSequence.length - 2) {
-    pattern = 'hit-miss';
-    prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
-    notes.push('Alternating hit/miss pattern detected');
-  }
-  
-  let improvingCount = 0;
-  for (let i = 0; i < validSpeeds.length - 1; i++) {
-    if (validSpeeds[i] > validSpeeds[i + 1]) improvingCount++;
-  }
-  
-  if (improvingCount >= validSpeeds.length - 2 && validSpeeds.length >= 3) {
-    pattern = 'improving';
-    prediction = 'hit';
-    notes.push('Improving pattern - each race better than previous');
-  }
-  
-  let decliningCount = 0;
-  for (let i = 0; i < validSpeeds.length - 1; i++) {
-    if (validSpeeds[i] < validSpeeds[i + 1]) decliningCount++;
-  }
-  
-  if (decliningCount >= validSpeeds.length - 2 && validSpeeds.length >= 3) {
-    pattern = 'declining';
-    prediction = 'miss';
-    notes.push('Declining pattern - performance dropping');
-  }
-  
-  if (validSpeeds.length >= 4) {
-    const recentAvg = validSpeeds.slice(0, 2).reduce((a, b) => a + b, 0) / 2;
-    const olderAvg = validSpeeds.slice(2, 4).reduce((a, b) => a + b, 0) / 2;
-    
-    if (recentAvg < olderAvg * 0.85) {
-      pattern = 'backed-up';
-      notes.push('Horse may be backing up - recent form below older form');
-    }
-  }
-  
-  return {
-    pattern,
-    hitMissSequence,
-    prediction,
-    topThreeBeyer,
-    topThreeBeyerSum,
-    bestLastTwo,
-    adjustedScore,
-    notes
-  };
+}
+
+if (hitMissSequence.length >= 3 && alternatingCount >= hitMissSequence.length - 2) {
+  pattern = 'hit-miss';
+  prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
+  notes.push('Alternating hit/miss pattern detected');
+}
+
+// 🔥 IMPROVING OVERRIDE (THIS IS WHAT YOU WANTED)
+if (hitMissSequence.includes('improving')) {
+  pattern = 'improving';
+  prediction = 'hit';
+}
+    return {
+  pattern,
+  hitMissSequence,
+  prediction,
+  topThreeBeyer,
+  topThreeBeyerSum,
+  bestLastTwo,
+  adjustedScore,
+  notes
+};
 };
 
 // ============================================================================
