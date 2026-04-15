@@ -1,5 +1,5 @@
 import React from 'react';
-import { HorseData, calculateRankings } from '@/utils/raceDataParser';
+import { HorseData, calculateRankings, analyzePatterns } from '@/utils/raceDataParser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Award } from 'lucide-react';
 
