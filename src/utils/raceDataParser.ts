@@ -1360,7 +1360,14 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
       // Calculate trust score
       horse.trustScore = calculateTrustScore(horse);
       
-      horses.push(horse);
+      // 🚫 PREVENT PHANTOM HORSE (SAFE FILTER)
+if (
+  horse.name &&
+  !horse.name.startsWith('Horse #') &&
+  (horse.pastPerformances.length > 0 || horse.isFirstTimeStarter)
+) {
+  horses.push(horse);
+}
       i = j - 1;
     }
     
