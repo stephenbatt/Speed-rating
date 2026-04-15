@@ -1061,16 +1061,40 @@ const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 const pool = [...validSpeeds, todaySpeed];
 
 // 🔥 TRUE TOP 3
-const topThreeBeyer = pool.sort((a, b) => b - a).slice(0, 3);
+const topThreeBeyer = [...pool].sort((a, b) => b - a).slice(0, 3);
 const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
-const median = validSpeeds.sort((a, b) => b - a)[Math.floor(validSpeeds.length / 2)];
+const median = [...validSpeeds].sort((a, b) => b - a)[Math.floor(validSpeeds.length / 2)];
 
 // 🔥 FINAL SCORE
 const adjustedScore = topThreeBeyerSum;
   
-  for (let i = 0; i < validSpeeds.length && i < 7; i++) {
-    hitMissSequence.push(validSpeeds[i] >= median ? 'hit' : 'miss');
+  // 🔥 CORRECT HIT/MISS LOGIC (OLD → NEW)
+const speeds = [...validSpeeds].slice(0, 7).reverse(); // oldest → newest
+const sequence = [];
+
+for (let i = 0; i < speeds.length - 1; i++) {
+  const current = speeds[i];
+  const next = speeds[i + 1];
+
+  if (next > current) {
+    sequence.push('miss'); // improved after → missed today
+  } else {
+    sequence.push('hit');  // declined after → hit today
   }
+}
+
+// Handle most recent race
+const last = speeds[speeds.length - 1];
+const prev = speeds[speeds.length - 2];
+
+if (last >= prev) {
+  sequence.push('hit');
+} else {
+  sequence.push('miss');
+}
+
+// Flip back to newest-first for UI
+hitMissSequence.push(...sequence.reverse());
   
   let pattern: PatternAnalysis['pattern'] = 'inconsistent';
   let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
