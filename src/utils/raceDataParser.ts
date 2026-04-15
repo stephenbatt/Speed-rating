@@ -1,4 +1,5 @@
 import { applyNegativeLadder, calculateStephenTotalScore } from '@/lib/statisticsStorage';
+
 // ================= TYPES =================
 export interface PastPerformance {
   speed: string;
@@ -28,8 +29,9 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i].trim();
 
+    // HORSE START: line is just a number (post position)
     const match = line.match(/^(\d+)$/);
     if (!match) {
       i++;
@@ -43,32 +45,35 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
 
     let j = i + 1;
 
-    while (j < lines.length && !lines[j].match(/^\d+\s+/)) {
+    // Read until next post number or end
+    while (j < lines.length && !lines[j].trim().match(/^(\d+)$/)) {
       const l = lines[j].trim();
 
-      // NAME
+      // NAME: first non-numeric, non-trivial line
       if (!name && l.length > 2 && !l.match(/^\d/)) {
         name = l;
       }
 
-      // ODDS
-      const oddsMatch = l.match(/\d+-\d+/);
-      if (oddsMatch) odds = oddsMatch[0];
+      // ODDS: first thing that looks like 9-2, 5-1, etc.
+      if (!odds) {
+        const oddsMatch = l.match(/\d+-\d+/);
+        if (oddsMatch) odds = oddsMatch[0];
+      }
 
-      // EXTRACT BEYER (LESS STRICT — FIXES PARSE BUTTON)
-const nums = l
-  .split(/\s+/)
-  .map(x => parseInt(x, 10))
-  .filter(n => !isNaN(n));
+      // BEYER EXTRACTION
+      const nums = l
+        .split(/\s+/)
+        .map(x => parseInt(x, 10))
+        .filter(n => !isNaN(n));
 
-// Only keep reasonable Beyer values
-if (nums.length > 0) {
-  const beyer = nums[nums.length - 1];
+      // Use SECOND number as Beyer (fixes wrong grabs)
+      if (nums.length >= 2) {
+        const beyer = nums[1];
+        if (beyer > 30 && beyer < 150) {
+          pastPerformances.push({ speed: beyer.toString() });
+        }
+      }
 
-  if (beyer > 30 && beyer < 150) {
-    pastPerformances.push({ speed: beyer.toString() });
-  }
-}
       j++;
     }
 
@@ -76,12 +81,13 @@ if (nums.length > 0) {
       postPosition,
       name: name || `Horse #${postPosition}`,
       odds,
-      pastPerformances
+      pastPerformances,
     };
 
-    // 🚫 PHANTOM HORSE KILL
+    // PHANTOM HORSE KILL: no name or no Beyers or header junk
     if (
       !horse.name ||
+      horse.pastPerformances.length === 0 ||
       horse.name.includes('Purse') ||
       horse.name.includes('FOR THREE YEAR OLDS')
     ) {
@@ -89,7 +95,7 @@ if (nums.length > 0) {
       continue;
     }
 
-    // 🚫 DUPLICATE PROTECTION (SAFE)
+    // DUPLICATE PROTECTION
     const exists = horses.some(h => h.postPosition === horse.postPosition);
     if (exists) {
       i = j;
@@ -103,6 +109,7 @@ if (nums.length > 0) {
   return horses;
 };
 
+// ================= RANKINGS =================
 export const calculateRankings = (horses: HorseData[]): HorseRanking[] => {
   const scored = horses.map(h => ({
     ...h,
@@ -152,15 +159,13 @@ export const formatHorseOutput = (horse: HorseData): string => {
 
   if (horse.pastPerformances.length > 0) {
     output += `Beyers: `;
-    output += horse.pastPerformances
-      .map(pp => pp.speed)
-      .join(', ');
+    output += horse.pastPerformances.map(pp => pp.speed).join(', ');
   }
 
   return output;
 };
 
-// ================= PATTERN ANALYSIS (FIX BUILD) =================
+// ================= PATTERN ANALYSIS =================
 export const analyzePatterns = (horses: HorseData[]) => {
   return horses.map(horse => {
     const speeds = horse.pastPerformances
@@ -180,7 +185,8 @@ export const analyzePatterns = (horses: HorseData[]) => {
     return {
       postPosition: horse.postPosition,
       name: horse.name,
-      pattern
+      pattern,
     };
   });
 };
+
