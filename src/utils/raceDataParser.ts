@@ -1069,8 +1069,9 @@ const median = [...validSpeeds].sort((a, b) => b - a)[Math.floor(validSpeeds.len
 const adjustedScore = topThreeBeyerSum;
 
 // 🔥 BUILD HIT / MISS + IMPROVING (YOUR RULE)
+// 🔥 CLEAN PATTERN BUILD (H / M / IMP — YOUR RULE)
 const speeds = [...validSpeeds].slice(0, 7).reverse(); // oldest → newest
-const sequence = [];
+const sequence: ('hit' | 'miss' | 'improving')[] = [];
 
 let turnedUp = false;
 
@@ -1080,20 +1081,22 @@ for (let i = 0; i < speeds.length - 1; i++) {
 
   if (!turnedUp) {
     if (current > next) {
-      sequence.push('hit');
+      sequence.push('hit');      // going down = HIT
     } else {
-      sequence.push('miss');     // FIRST move up
-      turnedUp = true;           // 🔥 SWITCH
+      sequence.push('miss');     // FIRST move up = MISS
+      turnedUp = true;           // 🔥 TURN POINT
     }
   } else {
-    sequence.push('improving');  // 🔥 AFTER TURN
+    sequence.push('improving');  // 🔥 AFTER TURN = IMPROVING
   }
 }
 
+// TODAY (last value)
 if (speeds.length >= 2) {
   sequence.push(turnedUp ? 'improving' : 'hit');
 }
 
+// send to UI (newest first)
 hitMissSequence.push(...sequence.reverse());
 
 // 🔥 PATTERN TYPE
