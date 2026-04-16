@@ -350,12 +350,16 @@ const HorseCard: React.FC<HorseCardProps> = ({ horse, isExpanded = false, onTogg
                     </div>
                     <div className="col-span-1 text-center">
                       {hitMiss && (
-                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
-                          hitMiss === 'hit' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                        }`}>
-                          {hitMiss === 'hit' ? 'H' : 'M'}
-                        </span>
-                      )}
+  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
+    hitMiss === 'hit'
+      ? 'bg-green-500 text-white'
+      : hitMiss === 'miss'
+      ? 'bg-red-500 text-white'
+      : 'bg-blue-500 text-white'
+  }`}>
+    {hitMiss === 'hit' ? 'H' : hitMiss === 'miss' ? 'M' : 'I'}
+  </span>
+)}
                     </div>
                   </div>
                 );
