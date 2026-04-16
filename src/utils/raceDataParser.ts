@@ -1029,7 +1029,7 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
 
 export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAnalysis => {
   const notes: string[] = [];
-  const hitMissSequence: ('hit' | 'miss' | 'improving')[] = [];
+  const hitMissSequence: ('hit' | 'miss')[] = [];
   
   const validSpeeds = pastPerformances
     .map(pp => {
@@ -1053,94 +1053,98 @@ export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAna
   }
   
   // 🔥 TODAY SPEED
-const lastTwoSpeeds = validSpeeds.slice(0, 2);
-const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
-const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+  const lastTwoSpeeds = validSpeeds.slice(0, 2);
+  const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
+  const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-// 🔥 COMBINE WITH ALL SPEEDS
-const pool = [...validSpeeds, todaySpeed];
+  // 🔥 COMBINE WITH ALL SPEEDS
+  const pool = [...validSpeeds, todaySpeed];
 
-// 🔥 TRUE TOP 3
-const topThreeBeyer = [...pool].sort((a, b) => b - a).slice(0, 3);
-const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
+  // 🔥 TRUE TOP 3
+  const topThreeBeyer = [...pool].sort((a, b) => b - a).slice(0, 3);
+  const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
 
-// 🔥 FINAL SCORE
-const adjustedScore = topThreeBeyerSum;
+  // 🔥 FINAL SCORE
+  const adjustedScore = topThreeBeyerSum;
 
-// 🔥 BUILD HIT / MISS + IMPROVING (YOUR RULE)
+  // 🔥 TAKE LAST 4
+  let recent = validSpeeds.slice(0, 4);
 
-// 🔥 TAKE LAST 4
-let recent = validSpeeds.slice(0, 4);
-
-// 🔥 REMOVE WORST
-if (recent.length === 4) {
-  const min = Math.min(...recent);
-  const index = recent.indexOf(min);
-  recent.splice(index, 1);
-}
-
-// 🔥 BUILD H/M ONLY (ANCHOR FIRST)
-const speeds = [...recent].reverse(); // oldest → newest
-
-const sequence: ('hit' | 'miss')[] = [];
-
-// start at 1 → anchor has NO label
-for (let i = 1; i < speeds.length; i++) {
-  const prev = speeds[i - 1];
-  const current = speeds[i];
-
-  if (current > prev) {
-    sequence.push('hit');   // UP = HIT
-  } else {
-    sequence.push('miss');  // DOWN = MISS
+  // 🔥 REMOVE WORST
+  if (recent.length === 4) {
+    const min = Math.min(...recent);
+    const index = recent.indexOf(min);
+    recent.splice(index, 1);
   }
-}
 
-// 🔥 SEND TO UI (NEWEST FIRST)
-hitMissSequence.push(...sequence.reverse());
+  // 🔥 BUILD H/M ONLY (ANCHOR FIRST)
+  const speeds = [...recent].reverse(); // oldest → newest
+  const sequence: ('hit' | 'miss')[] = [];
 
-// 🔥 PATTERN TYPE
-let pattern: PatternAnalysis['pattern'] = 'inconsistent';
-let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
+  for (let i = 1; i < speeds.length; i++) {
+    const prev = speeds[i - 1];
+    const current = speeds[i];
 
-// 🔥 HIT/MISS DETECTION
-let alternatingCount = 0;
-for (let i = 0; i < hitMissSequence.length - 1; i++) {
-  if (hitMissSequence[i] !== hitMissSequence[i + 1]) {
-    alternatingCount++;
+    if (current > prev) {
+      sequence.push('hit');   // UP = HIT
+    } else {
+      sequence.push('miss');  // DOWN = MISS
+    }
   }
-}
 
-if (
-  hitMissSequence.length >= 3 &&
-  alternatingCount >= hitMissSequence.length - 2
-) {
-  pattern = 'hit-miss';
-  prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
-  notes.push('Alternating hit/miss pattern detected');
-}
+  // 🔥 SEND TO UI (NEWEST FIRST)
+  hitMissSequence.push(...sequence.reverse());
 
-// 🔥 TRUE IMPROVING (RECENT ONLY)
-if (
-  hitMissSequence.length >= 3 &&
-  hitMissSequence.slice(0, 2).every(v => v === 'improving')
-) {
-  pattern = 'improving';
-  prediction = 'hit';
-}
+  // 🔥 PATTERN TYPE (CLEAN H/M BASED)
+  let pattern: PatternAnalysis['pattern'] = 'inconsistent';
+  let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
 
-// 🔥 RETURN
-return {
-  pattern,
-  hitMissSequence,
-  prediction,
-  topThreeBeyer,
-  topThreeBeyerSum,
-  bestLastTwo,
-  adjustedScore,
-  notes
+  if (hitMissSequence.length >= 2) {
+    let hits = 0;
+    let misses = 0;
+    let alternating = true;
+
+    for (let i = 0; i < hitMissSequence.length; i++) {
+      if (hitMissSequence[i] === 'hit') hits++;
+      else misses++;
+
+      if (i > 0 && hitMissSequence[i] === hitMissSequence[i - 1]) {
+        alternating = false;
+      }
+    }
+
+    // 🔥 IMPROVING = mostly hits
+    if (hits >= 2 && misses <= 1) {
+      pattern = 'improving';
+      prediction = 'hit';
+    }
+
+    // 🔥 HIT/MISS = alternating
+    else if (alternating) {
+      pattern = 'hit-miss';
+      prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
+      notes.push('Alternating hit/miss pattern detected');
+    }
+
+    // 🔥 OTHERWISE
+    else {
+      pattern = 'inconsistent';
+      prediction = 'unknown';
+    }
+  }
+
+  // 🔥 RETURN
+  return {
+    pattern,
+    hitMissSequence,
+    prediction,
+    topThreeBeyer,
+    topThreeBeyerSum,
+    bestLastTwo,
+    adjustedScore,
+    notes
+  };
 };
-}; // ✅ THIS closes the function
   
 // ============================================================================
 // MAIN PARSER - CRITICAL FIX FOR HORSE BOUNDARIES
