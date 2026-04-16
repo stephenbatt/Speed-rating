@@ -1072,50 +1072,31 @@ const adjustedScore = topThreeBeyerSum;
 // 🔥 TAKE LAST 4
 let recent = validSpeeds.slice(0, 4);
 
-// 🔥 REMOVE WORST (YOUR RULE)
+// 🔥 REMOVE WORST
 if (recent.length === 4) {
   const min = Math.min(...recent);
   const index = recent.indexOf(min);
   recent.splice(index, 1);
 }
 
-// 🔥 USE CLEANED DATA
+// 🔥 BUILD H/M ONLY (ANCHOR FIRST)
 const speeds = [...recent].reverse(); // oldest → newest
 
-const sequence: ('hit' | 'miss' | 'improving')[] = [];
+const sequence: ('hit' | 'miss')[] = [];
 
-let turnedUp = false;
-
-// 🔥 BUILD PATTERN
-for (let i = 0; i < speeds.length - 1; i++) {
+// start at 1 → anchor has NO label
+for (let i = 1; i < speeds.length; i++) {
+  const prev = speeds[i - 1];
   const current = speeds[i];
-  const next = speeds[i + 1];
 
-  if (!turnedUp) {
-    if (current > next) {
-      sequence.push('miss');     // ✔ DOWN = MISS
-    } else {
-      sequence.push('hit');      // ✔ UP = HIT
-      turnedUp = true;           // 🔥 TURN POINT
-    }
+  if (current > prev) {
+    sequence.push('hit');   // UP = HIT
   } else {
-    sequence.push('improving');  // ✔ AFTER TURN
+    sequence.push('miss');  // DOWN = MISS
   }
 }
 
-// 🔥 TODAY (SAFE + CORRECT)
-if (speeds.length >= 2) {
-  const last = speeds[speeds.length - 1];
-  const prev = speeds[speeds.length - 2];
-
-  if (turnedUp) {
-    sequence.push('improving');
-  } else {
-    sequence.push(last < prev ? 'miss' : 'hit');
-  }
-}
-
-// 🔥 SEND TO UI
+// 🔥 SEND TO UI (NEWEST FIRST)
 hitMissSequence.push(...sequence.reverse());
 
 // 🔥 PATTERN TYPE
