@@ -1063,46 +1063,66 @@ const pool = [...validSpeeds, todaySpeed];
 // 🔥 TRUE TOP 3
 const topThreeBeyer = [...pool].sort((a, b) => b - a).slice(0, 3);
 const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
-const median = [...validSpeeds].sort((a, b) => b - a)[Math.floor(validSpeeds.length / 2)];
 
 // 🔥 FINAL SCORE
 const adjustedScore = topThreeBeyerSum;
 
 // 🔥 BUILD HIT / MISS + IMPROVING (YOUR RULE)
-// 🔥 CLEAN PATTERN BUILD (H / M / IMP — YOUR RULE)
-const speeds = [...validSpeeds].slice(0, 7).reverse(); // oldest → newest
+
+// 🔥 TAKE LAST 4
+let recent = validSpeeds.slice(0, 4);
+
+// 🔥 REMOVE WORST (YOUR RULE)
+if (recent.length === 4) {
+  const min = Math.min(...recent);
+  const index = recent.indexOf(min);
+  recent.splice(index, 1);
+}
+
+// 🔥 USE CLEANED DATA
+const speeds = [...recent].reverse(); // oldest → newest
+
 const sequence: ('hit' | 'miss' | 'improving')[] = [];
 
 let turnedUp = false;
 
+// 🔥 BUILD PATTERN
 for (let i = 0; i < speeds.length - 1; i++) {
   const current = speeds[i];
   const next = speeds[i + 1];
 
   if (!turnedUp) {
     if (current > next) {
-      sequence.push('hit');      // going down = HIT
+      sequence.push('miss');     // ✔ DOWN = MISS
     } else {
-      sequence.push('miss');     // FIRST move up = MISS
+      sequence.push('hit');      // ✔ UP = HIT
       turnedUp = true;           // 🔥 TURN POINT
     }
   } else {
-    sequence.push('improving');  // 🔥 AFTER TURN = IMPROVING
+    sequence.push('improving');  // ✔ AFTER TURN
   }
 }
 
-// TODAY (last value)
+// 🔥 TODAY (SAFE + CORRECT)
 if (speeds.length >= 2) {
-  sequence.push(turnedUp ? 'improving' : 'hit');
+  const last = speeds[speeds.length - 1];
+  const prev = speeds[speeds.length - 2];
+
+  if (turnedUp) {
+    sequence.push('improving');
+  } else {
+    sequence.push(last < prev ? 'miss' : 'hit');
+  }
 }
 
-// send to UI (newest first)
+// 🔥 SEND TO UI
 hitMissSequence.push(...sequence.reverse());
 
 // 🔥 PATTERN TYPE
 let pattern: PatternAnalysis['pattern'] = 'inconsistent';
 let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
 
+// 🔥 HIT/MISS DETECTION
 let alternatingCount = 0;
 for (let i = 0; i < hitMissSequence.length - 1; i++) {
   if (hitMissSequence[i] !== hitMissSequence[i + 1]) {
@@ -1110,18 +1130,26 @@ for (let i = 0; i < hitMissSequence.length - 1; i++) {
   }
 }
 
-if (hitMissSequence.length >= 3 && alternatingCount >= hitMissSequence.length - 2) {
+if (
+  hitMissSequence.length >= 3 &&
+  alternatingCount >= hitMissSequence.length - 2
+) {
   pattern = 'hit-miss';
   prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
   notes.push('Alternating hit/miss pattern detected');
 }
 
-// 🔥 IMPROVING OVERRIDE (THIS IS WHAT YOU WANTED)
-if (hitMissSequence.includes('improving')) {
+// 🔥 TRUE IMPROVING (RECENT ONLY)
+if (
+  hitMissSequence.length >= 3 &&
+  hitMissSequence.slice(0, 2).every(v => v === 'improving')
+) {
   pattern = 'improving';
   prediction = 'hit';
 }
-    return {
+
+// 🔥 RETURN
+return {
   pattern,
   hitMissSequence,
   prediction,
@@ -1131,8 +1159,8 @@ if (hitMissSequence.includes('improving')) {
   adjustedScore,
   notes
 };
-};
-
+}; // ✅ THIS closes the function
+  
 // ============================================================================
 // MAIN PARSER - CRITICAL FIX FOR HORSE BOUNDARIES
 // ============================================================================
