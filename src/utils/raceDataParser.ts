@@ -1072,44 +1072,28 @@ const adjustedScore = topThreeBeyerSum;
 const speeds = [...validSpeeds].slice(0, 7).reverse(); // oldest → newest
 const sequence = [];
 
-// STEP 1: HIT / MISS
+let turnedUp = false;
+
 for (let i = 0; i < speeds.length - 1; i++) {
   const current = speeds[i];
   const next = speeds[i + 1];
 
-  if (current > next) {
-    sequence.push('hit');
-  } else {
-    sequence.push('miss');
-  }
-}
-
-// STEP 2: HANDLE LAST RACE
-if (speeds.length >= 2) {
-  const last = speeds[speeds.length - 1];
-  const prev = speeds[speeds.length - 2];
-
-  if (last >= prev) {
-    sequence.push('hit');
-  } else {
-    sequence.push('miss');
-  }
-}
-
-// STEP 3: APPLY IMPROVING (YOUR RULE)
-for (let i = 0; i < speeds.length - 2; i++) {
-  if (
-    speeds[i + 1] > speeds[i] &&
-    speeds[i + 2] > speeds[i + 1]
-  ) {
-    for (let j = i; j < sequence.length; j++) {
-      sequence[j] = 'improving';
+  if (!turnedUp) {
+    if (current > next) {
+      sequence.push('hit');
+    } else {
+      sequence.push('miss');     // FIRST move up
+      turnedUp = true;           // 🔥 SWITCH
     }
-    break;
+  } else {
+    sequence.push('improving');  // 🔥 AFTER TURN
   }
 }
 
-// STEP 4: SEND TO UI
+if (speeds.length >= 2) {
+  sequence.push(turnedUp ? 'improving' : 'hit');
+}
+
 hitMissSequence.push(...sequence.reverse());
 
 // 🔥 PATTERN TYPE
