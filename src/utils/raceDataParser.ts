@@ -1029,7 +1029,7 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
 
 export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAnalysis => {
   const notes: string[] = [];
-  const hitMissSequence: ('hit' | 'miss')[] = [];
+  const hitMissSequence: ('hit' | 'miss' | 'improving')[] = [];
   
   const validSpeeds = pastPerformances
     .map(pp => {
