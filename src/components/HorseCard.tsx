@@ -351,41 +351,16 @@ const HorseCard: React.FC<HorseCardProps> = ({ horse, isExpanded = false, onTogg
                     <div className="col-span-1 text-center">
                       {hitMiss && (
   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
-    {(() => {
-  const prev = pa?.hitMissSequence[index - 1];
-  const isImproving = hitMiss === 'hit' && prev === 'hit';
-
-  if (isImproving) return 'bg-blue-500 text-white'; // 🔥 I
-  if (hitMiss === 'hit') return 'bg-green-500 text-white'; // H
-  if (hitMiss === 'miss') return 'bg-red-500 text-white'; // M
-  return 'bg-blue-500 text-white';
-})()}
-  const prev = pa?.hitMissSequence[index - 1];
-
-  <div className="col-span-1 text-center">
-  {hitMiss && (() => {
-    const prev = pa?.hitMissSequence[index - 1];
-    const isImproving = hitMiss === 'hit' && prev === 'hit';
-
-    const label = isImproving
-      ? 'I'
-      : hitMiss === 'hit'
-      ? 'H'
-      : 'M';
-
-    const color = isImproving
-      ? 'bg-blue-500 text-white'   // I
-      : hitMiss === 'hit'
-      ? 'bg-green-500 text-white'  // H
-      : 'bg-red-500 text-white';   // M
-
-    return (
-      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${color}`}>
-        {label}
-      </span>
-    );
-  })()}
-</div>
+    hitMiss === 'hit'
+      ? 'bg-green-500 text-white'
+      : hitMiss === 'miss'
+      ? 'bg-red-500 text-white'
+      : 'bg-blue-500 text-white'
+  }`}>
+    {hitMiss === 'hit' ? 'H' : hitMiss === 'miss' ? 'M' : 'I'}
+  </span>
+)}
+                    </div>
                   </div>
                 );
               })
@@ -468,4 +443,3 @@ const HorseCard: React.FC<HorseCardProps> = ({ horse, isExpanded = false, onTogg
 };
 
 export default HorseCard;
-
