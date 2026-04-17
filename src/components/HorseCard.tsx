@@ -1,4 +1,4 @@
-I keep butchering that *** ** * ***** up so fix it give me the whole *** **** code back 'cause I'm ******* T the code I'm fixing the page is ****** **import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { HorseData, PastPerformance } from '@/utils/raceDataParser';
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Trophy, MapPin, Clock, Activity, Target, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -468,3 +468,4 @@ const HorseCard: React.FC<HorseCardProps> = ({ horse, isExpanded = false, onTogg
 };
 
 export default HorseCard;
+
