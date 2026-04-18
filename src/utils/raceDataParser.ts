@@ -1057,11 +1057,16 @@ const lastTwoSpeeds = validSpeeds.slice(0, 2);
 const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
 const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-// 🔥 COMBINE WITH ALL SPEEDS
-const pool = [...validSpeeds, todaySpeed];
+  // 🔥 TRUE TOP 3
+// 🔥 LAST 3 ONLY (YOUR RULE)
+const lastThree = validSpeeds.slice(0, 3);
 
-// 🔥 TRUE TOP 3
-const topThreeBeyer = [...pool].sort((a, b) => b - a).slice(0, 3);
+// 🔥 ADD TODAY SPEED INTO POSITION 1 IF NEEDED
+const topThreeBeyer = [
+  todaySpeed > 0 ? todaySpeed : lastThree[0],
+  lastThree[1] || 0,
+  lastThree[2] || 0,
+].filter(n => n > 0);
 const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
 
 // 🔥 FINAL SCORE
