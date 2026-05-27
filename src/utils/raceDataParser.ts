@@ -1583,14 +1583,27 @@ const computeStephenImprovingScore = (horse) => {
   const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
   const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-  // 🔥 STEP 2: COMBINE TODAY SPEED WITH ALL SPEEDS
-  const pool = [...speeds, todaySpeed];
+  // ============================================================================
+// IMPROVING RULES
+// newest on top
+// use ONLY last 4 usable outs
+// projected today replaces oldest usable figure
+// ============================================================================
 
-  // 🔥 STEP 3: PICK TOP 3 FROM POOL
-  const topThree = pool.sort((a, b) => b - a).slice(0, 3);
+// Last 4 usable outs
+const lastFour = speeds.slice(0, 4);
 
-  // 🔥 FINAL
-  return topThree.reduce((sum, v) => sum + v, 0);
+// Not enough usable data
+if (lastFour.length < 3) {
+  return todaySpeed + (lastFour[0] || 0) + (lastFour[1] || 0);
+}
+
+// newest supporting figures
+const support1 = lastFour[0];
+const support2 = lastFour[1];
+
+// FINAL SCORE
+return todaySpeed + support1 + support2;
 };
 
 // ============================================================================
