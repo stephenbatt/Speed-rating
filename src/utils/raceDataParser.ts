@@ -1568,44 +1568,154 @@ export const parseRaceData = (rawText: string): RaceData => {
 // Last 7 → Last 4 → Throw one away → Pick one up → Best of last 2 + 5 → Replace weakest
 // ============================================================================
 
-const computeStephenImprovingScore = (horse) => {
-  if (!horse.pastPerformances || horse.pastPerformances.length === 0) return 0;
+// ============================================================================
+// STEPHEN PATTERN ENGINE V2
+// ============================================================================
 
+const computeStephenImprovingScore = (horse) => {
+
+  if (!horse.pastPerformances || horse.pastPerformances.length === 0) {
+    return 0;
+  }
+
+  // newest on top
   const speeds = horse.pastPerformances
     .slice(0, 7)
     .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
     .filter(n => !isNaN(n) && n > 0);
 
-  if (speeds.length === 0) return 0;
+  if (speeds.length === 0) {
+    return 0;
+  }
 
-  // 🔥 STEP 1: TODAY SPEED (BEST OF LAST 2 + 5)
-  const lastTwo = speeds.slice(0, 2);
-  const bestLastTwo = lastTwo.length > 0 ? Math.max(...lastTwo) : 0;
-  const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
+  // --------------------------------------------------------------------------
+  // NOT ENOUGH DATA
+  // --------------------------------------------------------------------------
 
-  // ============================================================================
-// IMPROVING RULES
-// newest on top
-// use ONLY last 4 usable outs
-// projected today replaces oldest usable figure
-// ============================================================================
+  if (speeds.length < 3) {
 
-// Last 4 usable outs
-const lastFour = speeds.slice(0, 4);
+    const best = Math.max(...speeds);
+    const projection = best + 5;
 
-// Not enough usable data
-if (lastFour.length < 3) {
-  return todaySpeed + (lastFour[0] || 0) + (lastFour[1] || 0);
-}
+    return projection + best;
+  }
 
-// newest supporting figures
-const support1 = lastFour[0];
-const support2 = lastFour[1];
+  // --------------------------------------------------------------------------
+  // NEWEST ON TOP
+  // --------------------------------------------------------------------------
 
-// FINAL SCORE
-return todaySpeed + support1 + support2;
+  const s1 = speeds[0];
+  const s2 = speeds[1];
+  const s3 = speeds[2];
+  const s4 = speeds[3] || 0;
+
+  // --------------------------------------------------------------------------
+  // TODAY PROJECTION
+  // --------------------------------------------------------------------------
+
+  const bestLastTwo = Math.max(s1, s2);
+  const todaySpeed = bestLastTwo + 5;
+
+  // --------------------------------------------------------------------------
+  // IMPROVING
+  // oldest -> newest improving
+  // --------------------------------------------------------------------------
+
+  const improving =
+    s4 < s3 &&
+    s3 < s2 &&
+    s2 < s1;
+
+  // --------------------------------------------------------------------------
+  // COLLAPSING
+  // --------------------------------------------------------------------------
+
+  const collapsing =
+    s4 > s3 &&
+    s3 > s2 &&
+    s2 > s1;
+
+  // --------------------------------------------------------------------------
+  // HIT / MISS
+  // greater than / less than alternating
+  // --------------------------------------------------------------------------
+
+  const hitMiss =
+    (
+      s4 < s3 &&
+      s3 > s2 &&
+      s2 < s1
+    ) ||
+    (
+      s4 > s3 &&
+      s3 < s2 &&
+      s2 > s1
+    );
+
+  // --------------------------------------------------------------------------
+  // IMPROVING HORSE
+  // --------------------------------------------------------------------------
+
+  if (improving) {
+
+    return (
+      todaySpeed +
+      s1 +
+      s2
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // HIT / MISS HORSE
+  // use only HIT cycle
+  // --------------------------------------------------------------------------
+
+  if (hitMiss) {
+
+    const hits = [];
+
+    for (let i = 0; i < speeds.length - 1; i++) {
+
+      if (speeds[i] > speeds[i + 1]) {
+        hits.push(speeds[i]);
+      }
+    }
+
+    hits.sort((a, b) => b - a);
+
+    const hit1 = hits[0] || s1;
+    const hit2 = hits[1] || s2;
+
+    return (
+      (hit1 + 5) +
+      hit1 +
+      hit2
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // COLLAPSING HORSE
+  // --------------------------------------------------------------------------
+
+  if (collapsing) {
+
+    return (
+      todaySpeed +
+      s1 +
+      Math.min(s2, s3)
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // CHAOTIC FALLBACK
+  // --------------------------------------------------------------------------
+
+  return (
+    todaySpeed +
+    s1 +
+    s2
+  );
 };
-
 // ============================================================================
 // PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
 // ============================================================================
