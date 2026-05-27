@@ -1668,95 +1668,80 @@ const regressionAfterImprovement =
   d1 < 0 &&
   d2 > 0 &&
   d3 > 0;
-  // --------------------------------------------------------------------------
-  // IMPROVING HORSE
-  // --------------------------------------------------------------------------
 
-  if (improving) {
+// --------------------------------------------------------------------------
+// IMPROVING HORSE
+// --------------------------------------------------------------------------
 
-    return (
-      todaySpeed +
-      s1 +
-      s2
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // HIT / MISS HORSE
-  // use only HIT cycle
-  // --------------------------------------------------------------------------
-
-  if (hitMiss) {
-
-    const hits = [];
-
-    for (let i = 0; i < speeds.length - 1; i++) {
-
-      if (speeds[i] > speeds[i + 1]) {
-        hits.push(speeds[i]);
-      }
-    }
-
-    hits.sort((a, b) => b - a);
-
-    const hit1 = hits[0] || s1;
-    const hit2 = hits[1] || s2;
-
-    return (
-      (hit1 + 5) +
-      hit1 +
-      hit2
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // COLLAPSING HORSE
-  // --------------------------------------------------------------------------
-
-  if (collapsing) {
-
-    return (
-      todaySpeed +
-      s1 +
-      Math.min(s2, s3)
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // CHAOTIC FALLBACK
-  // --------------------------------------------------------------------------
+if (improving) {
 
   return (
     todaySpeed +
     s1 +
     s2
   );
-};
-// ============================================================================
-// PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
-// ============================================================================
+}
 
-export const calculateRankings = (horses) => {
-  if (!horses || horses.length === 0) return [];
+// --------------------------------------------------------------------------
+// HIT / MISS HORSE
+// use only HIT cycle
+// --------------------------------------------------------------------------
 
-  const scored = horses.map(h => {
-    const totalScore = computeStephenImprovingScore(h);
-    return { horse: h, totalScore };
-  });
+if (hitMiss) {
 
-  const ladder = [0, -5, -10, -15, -20, -25, -30, -35, -40];
+  const hits = [];
 
-  const rankings = scored
-    .sort((a, b) => b.totalScore - a.totalScore)
-    .map((s, i) => {
-  return {
-    postPosition: s.horse.postPosition,
-    name: s.horse.name,
-    adjustedScore: s.totalScore,
-    adjustment: 0,                 // 🔥 TURN OFF NEGATIVES
-    finalScore: s.totalScore       // 🔥 TRUE SCORE ONLY
-  };
-});
+  for (let i = 0; i < speeds.length - 1; i++) {
 
-  return rankings;
-};
+    if (speeds[i] > speeds[i + 1]) {
+      hits.push(speeds[i]);
+    }
+  }
+
+  hits.sort((a, b) => b - a);
+
+  const hit1 = hits[0] || s1;
+  const hit2 = hits[1] || s2;
+
+  return (
+    (hit1 + 5) +
+    hit1 +
+    hit2
+  );
+}
+
+// --------------------------------------------------------------------------
+// IMPROVING THEN REGRESSION HORSE
+// --------------------------------------------------------------------------
+
+if (regressionAfterImprovement) {
+
+  return (
+    todaySpeed +
+    s2 +
+    s3
+  );
+}
+
+// --------------------------------------------------------------------------
+// COLLAPSING HORSE
+// --------------------------------------------------------------------------
+
+if (collapsing) {
+
+  return (
+    todaySpeed +
+    s1 +
+    Math.min(s2, s3)
+  );
+}
+
+// --------------------------------------------------------------------------
+// CHAOTIC FALLBACK
+// --------------------------------------------------------------------------
+
+return (
+  todaySpeed +
+  s1 +
+  s2
+);
