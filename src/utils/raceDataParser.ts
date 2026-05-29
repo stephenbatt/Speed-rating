@@ -1564,11 +1564,6 @@ export const parseRaceData = (rawText: string): RaceData => {
 };
 
 // ============================================================================
-// STEPHEN IMPROVING-ONLY ENGINE (CLEAN FINAL VERSION)
-// Last 7 → Last 4 → Throw one away → Pick one up → Best of last 2 + 5 → Replace weakest
-// ============================================================================
-
-// ============================================================================
 // STEPHEN PATTERN ENGINE V2
 // ============================================================================
 
