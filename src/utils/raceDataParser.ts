@@ -1740,3 +1740,10 @@ return (
   s1 +
   s2
 );
+};
+
+// ============================================================================
+// PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
+// ============================================================================
+
+export const calculateRankings = (horses) => {
