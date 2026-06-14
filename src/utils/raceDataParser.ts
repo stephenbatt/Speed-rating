@@ -30,6 +30,12 @@ export type ParseReason =
   | 'NON_RACE_ENTRY'
   | 'FIRST_TIME_STARTER';
 
+// Additional reasons used by odds extraction
+export type ExtraParseReasons = 'FOUND_AT_LINE_START' | 'NO_ODDS_LINE_FOUND';
+
+// Added parse reasons used elsewhere
+export type ExtendedParseReason = ParseReason | 'FOUND_AT_LINE_START' | 'NO_ODDS_LINE_FOUND';
+
 export interface ValidationReport {
   field: string;
   value: string | number;
@@ -61,6 +67,17 @@ export interface TrustScore {
   score: number;      // 0-100
   deductions: { reason: string; amount: number }[];
   level: 'HIGH' | 'MEDIUM' | 'LOW' | 'EXCLUDE';
+}
+
+export interface PatternAnalysis {
+  pattern: 'improving' | 'hit-miss' | 'inconsistent' | 'unknown';
+  hitMissSequence: ('hit' | 'miss' | 'improving')[];
+  prediction: 'hit' | 'miss' | 'unknown';
+  topThreeBeyer: number[];
+  topThreeBeyerSum: number;
+  bestLastTwo: number;
+  adjustedScore: number;
+  notes: string[];
 }
 
 export interface PPFingerprint {
@@ -511,6 +528,15 @@ const extractPaceSpeed = (line: string): {
     });
   }
   
+  console.log('PACE/SPEED PARSE');
+console.log('LINE:', line);
+console.log('CLASS END:', classEndIndex);
+console.log('AFTER CLASS:', afterClass);
+console.log('TOKENS:', tokens);
+console.log('NUMERICS:', numericCandidates);
+console.log('PACE:', pace);
+console.log('SPEED:', speed);
+
   return { pace, speed, validation };
 };
 
@@ -895,11 +921,11 @@ const extractOdds = (lines: string[]): { odds: string; validation: ValidationRep
       return {
         odds: cleanOdds,
         validation: {
-          field: 'odds',
-          value: cleanOdds,
-          reason: 'FOUND_AT_LINE_START',
-          confidence: 'HIGH'
-        }
+            field: 'odds',
+            value: cleanOdds,
+            reason: 'FOUND_STANDALONE',
+            confidence: 'HIGH'
+          }
       };
     }
   }
@@ -910,7 +936,7 @@ const extractOdds = (lines: string[]): { odds: string; validation: ValidationRep
     validation: {
       field: 'odds',
       value: '0',
-      reason: 'NO_ODDS_LINE_FOUND',
+      reason: 'ODDS_NOT_FOUND',
       confidence: 'LOW'
     }
   };
@@ -1022,138 +1048,241 @@ const parseRaceLine = (line: string, fingerprint?: PPFingerprint): PastPerforman
     parseError
   };
 };
-
-// ============================================================================
-// PATTERN ANALYSIS
-// ============================================================================
-
 export const analyzePatterns = (pastPerformances: PastPerformance[]): PatternAnalysis => {
-  const notes: string[] = [];
-  const hitMissSequence: ('hit' | 'miss' | 'improving')[] = [];
-  
-  const validSpeeds = pastPerformances
-    .map(pp => {
-      if (pp.speed === '--' || pp.speed === '0') return 0;
-      const num = parseInt(pp.speed, 10);
-      return isNaN(num) ? 0 : num;
-    })
-    .filter(s => s > 0);
-  
-  if (validSpeeds.length < 2) {
-    return {
-      pattern: 'unknown',
-      hitMissSequence: [],
-      prediction: 'unknown',
-      topThreeBeyer: [],
-      topThreeBeyerSum: 0,
-      bestLastTwo: 0,
-      adjustedScore: 0,
-      notes: ['Insufficient valid speed data for pattern analysis']
-    };
+const notes: string[] = [];
+const hitMissSequence: ('hit' | 'miss' | 'improving')[] = [];
+
+console.log('RAW PP:', pastPerformances);
+const validSpeeds = pastPerformances
+.map(pp => {
+if (pp.speed === '--' || pp.speed === '0') return 0;
+const num = parseInt(pp.speed, 10);
+return isNaN(num) ? 0 : num;
+})
+.filter(s => s > 0);
+
+console.log('VALID SPEEDS:', validSpeeds);
+console.log(
+  'HORSE DEBUG:',
+  validSpeeds.join(', ')
+);
+if (validSpeeds.length < 2) {
+return {
+pattern: 'unknown',
+hitMissSequence: [],
+prediction: 'unknown',
+topThreeBeyer: [],
+topThreeBeyerSum: 0,
+bestLastTwo: 0,
+adjustedScore: 0,
+notes: ['Insufficient valid speed data for pattern analysis']
+};
+}
+
+// ============================================================================
+// STEPHEN ENGINE
+// ============================================================================
+
+const analysisSpeeds = validSpeeds.slice(0, 12)
+
+const s1 = analysisSpeeds[0] || 0;
+const s2 = analysisSpeeds[1] || 0;
+const s3 = analysisSpeeds[2] || 0;
+const s4 = analysisSpeeds[3] || 0;
+
+const bestLastTwo = Math.max(s1, s2);
+const todaySpeed = bestLastTwo + 5;
+
+let improving = false;
+let hitMiss = false;
+
+let rises = 0;
+let falls = 0;
+
+for (let i = 0; i < analysisSpeeds.length - 1; i++) {
+
+  if (analysisSpeeds[i] > analysisSpeeds[i + 1]) {
+    rises++;
   }
-  
-  // 🔥 TODAY SPEED
-const lastTwoSpeeds = validSpeeds.slice(0, 2);
-const bestLastTwo = lastTwoSpeeds.length > 0 ? Math.max(...lastTwoSpeeds) : 0;
-const todaySpeed = bestLastTwo > 0 ? bestLastTwo + 5 : 0;
 
-  // 🔥 TRUE TOP 3
-// 🔥 LAST 3 ONLY (YOUR RULE)
-const lastThree = validSpeeds.slice(0, 3);
+  if (analysisSpeeds[i] < analysisSpeeds[i + 1]) {
+    falls++;
+  }
+}
 
-// 🔥 ADD TODAY SPEED INTO POSITION 1 IF NEEDED
-const topThreeBeyer = [
-  todaySpeed > 0 ? todaySpeed : lastThree[0],
-  lastThree[1] || 0,
-  lastThree[2] || 0,
-].filter(n => n > 0);
-const topThreeBeyerSum = topThreeBeyer.reduce((sum, s) => sum + s, 0);
+const recent4 = analysisSpeeds.slice(0, 4);
 
-// 🔥 FINAL SCORE
+improving =
+  recent4.length >= 4 &&
+  recent4[3] < recent4[2] &&
+  recent4[2] < recent4[1];
+
+hitMiss = !improving;
+
+console.log(
+  'PATTERN DEBUG',
+  {
+    analysisSpeeds,
+    recent4,
+    improving,
+    hitMiss
+  }
+);
+
+const collapsing = false;
+const regressionAfterImprovement = false;
+
+console.log(
+  'ANALYSIS SPEEDS:',
+  analysisSpeeds.join(', ')
+);;
+
+let topThreeBeyer: number[] = [];
+
+if (improving) {
+
+  console.log(
+    'IMPROVING DEBUG',
+    {
+      analysisSpeeds,
+      s1,
+      s2,
+      s3,
+      todaySpeed
+    }
+  );
+
+  let active1 = s1;
+  let active2 = s2;
+
+  if (s3 > Math.min(active1, active2)) {
+
+    if (active1 <= active2) {
+      active1 = s3;
+    } else {
+      active2 = s3;
+    }
+  }
+
+  topThreeBeyer = [
+    todaySpeed,
+    active1,
+    active2
+  ];
+
+  notes.push('Stephen Improving Pattern');
+}
+
+// --------------------------------------------------------------------------
+// HIT / MISS
+// --------------------------------------------------------------------------
+
+else if (hitMiss) {
+
+  const hits: number[] = [];
+
+  for (let i = 0; i < analysisSpeeds.length - 1; i++) {
+    if (analysisSpeeds[i] > analysisSpeeds[i + 1]) {
+      hits.push(analysisSpeeds[i]);
+    }
+  }
+
+  if (hits.length >= 2) {
+
+    const active1 = hits[0];
+    const active2 = hits[1];
+
+    console.log('HIT/MISS DEBUG');
+    console.log('analysisSpeeds =', analysisSpeeds);
+    console.log('hits =', hits);
+    console.log('active1 =', active1);
+    console.log('active2 =', active2);
+
+    topThreeBeyer = [
+      todaySpeed,
+      active1,
+      active2
+    ];
+
+    notes.push('Stephen Hit/Miss Pattern');
+  }
+}
+
+// --------------------------------------------------------------------------
+// REGRESSION AFTER IMPROVEMENT
+// --------------------------------------------------------------------------
+else if (regressionAfterImprovement) {
+  topThreeBeyer = [
+    todaySpeed,
+    s2,
+    s1
+  ];
+
+  notes.push('Stephen Regression Pattern');
+}
+
+// --------------------------------------------------------------------------
+// COLLAPSING
+// --------------------------------------------------------------------------
+
+else if (collapsing) {
+  topThreeBeyer = [
+    todaySpeed,
+    s1,
+    Math.min(s2, s3)
+  ];
+
+  notes.push('Stephen Collapsing Pattern');
+}
+
+// --------------------------------------------------------------------------
+// DEFAULT
+// --------------------------------------------------------------------------
+
+if (topThreeBeyer.length === 0) {
+
+  let active1 = s1;
+  let active2 = s2;
+
+  if (s3 > Math.min(active1, active2)) {
+
+    if (active1 <= active2) {
+      active1 = s3;
+    } else {
+      active2 = s3;
+    }
+  }
+
+  topThreeBeyer = [
+    todaySpeed,
+    active1,
+    active2
+  ];
+
+  notes.push('Stephen Default Pattern');
+}
+
+const topThreeBeyerSum =
+  topThreeBeyer.reduce((sum, s) => sum + s, 0);
+
 const adjustedScore = topThreeBeyerSum;
 
-// 🔥 BUILD HIT / MISS + IMPROVING (YOUR RULE)
-
-// 🔥 TAKE LAST 4
-let recent = validSpeeds.slice(0, 4);
-
-// 🔥 REMOVE WORST (YOUR RULE)
-if (recent.length === 4) {
-  const min = Math.min(...recent);
-  const index = recent.indexOf(min);
-  recent.splice(index, 1);
-}
-
-// 🔥 USE CLEANED DATA
-const speeds = [...recent].reverse(); // oldest → newest
-
-const sequence: ('hit' | 'miss' | 'improving')[] = [];
-
-let turnedUp = false;
-
-// 🔥 BUILD PATTERN
-for (let i = 0; i < speeds.length - 1; i++) {
-  const current = speeds[i];
-  const next = speeds[i + 1];
-
-  if (!turnedUp) {
-    if (current > next) {
-      sequence.push('miss');     // ✔ DOWN = MISS
-    } else {
-      sequence.push('hit');      // ✔ UP = HIT
-      turnedUp = true;           // 🔥 TURN POINT
-    }
-  } else {
-    sequence.push('improving');  // ✔ AFTER TURN
-  }
-}
-
-// 🔥 TODAY (SAFE + CORRECT)
-if (speeds.length >= 2) {
-  const last = speeds[speeds.length - 1];
-  const prev = speeds[speeds.length - 2];
-
-  if (turnedUp) {
-    sequence.push('improving');
-  } else {
-    sequence.push(last < prev ? 'miss' : 'hit');
-  }
-}
-
-// 🔥 SEND TO UI
-hitMissSequence.push(...sequence.reverse());
-
-// 🔥 PATTERN TYPE
 let pattern: PatternAnalysis['pattern'] = 'inconsistent';
 let prediction: 'hit' | 'miss' | 'unknown' = 'unknown';
 
-// 🔥 HIT/MISS DETECTION
-let alternatingCount = 0;
-for (let i = 0; i < hitMissSequence.length - 1; i++) {
-  if (hitMissSequence[i] !== hitMissSequence[i + 1]) {
-    alternatingCount++;
-  }
+if (improving) {
+  pattern = 'improving';
+  prediction = 'hit';
 }
-
-if (
-  hitMissSequence.length >= 3 &&
-  alternatingCount >= hitMissSequence.length - 2
-) {
+else if (hitMiss) {
   pattern = 'hit-miss';
-  prediction = hitMissSequence[0] === 'hit' ? 'miss' : 'hit';
-  notes.push('Alternating hit/miss pattern detected');
+  prediction = 'hit';
 }
-
-// 🔥 TRUE IMPROVING (RECENT ONLY)
-if (
-  hitMissSequence.length >= 3 &&
-  hitMissSequence.slice(0, 2).every(v => v === 'improving')
-) {
+else if (regressionAfterImprovement) {
   pattern = 'improving';
   prediction = 'hit';
 }
 
-// 🔥 RETURN
 return {
   pattern,
   hitMissSequence,
@@ -1164,8 +1293,8 @@ return {
   adjustedScore,
   notes
 };
-}; // ✅ THIS closes the function
-  
+};
+
 // ============================================================================
 // MAIN PARSER - CRITICAL FIX FOR HORSE BOUNDARIES
 // ============================================================================
@@ -1353,21 +1482,30 @@ export const parseSimpleFormat = (rawText: string): HorseData[] => {
         
         // Now parse the combined lines
         for (const blockLine of combinedLines) {
-          if (pastPerformances.length >= maxRaces) break;
-          
-          if (hasDateToken(blockLine) && isValidPPLine(blockLine)) {
-            const pp = parseRaceLine(blockLine, fingerprint);
-            pastPerformances.push(pp);
-            
-            // Extract jockey from first valid PP line if not found
-            if (!jockey && pp.jockey) {
-              jockey = pp.jockey;
-            }
-          }
-        }
-      }
 
-      
+  if (pastPerformances.length >= maxRaces) break;
+
+  if (hasDateToken(blockLine)) {
+
+    const pp = parseRaceLine(blockLine, fingerprint);
+
+    pastPerformances.push(pp);
+
+    console.log(
+      'PP ADDED:',
+      pp.date,
+      pp.speed,
+      blockLine
+    );
+
+    // Extract jockey from first valid PP line if not found
+    if (!jockey && pp.jockey) {
+      jockey = pp.jockey;
+    }
+  }
+}
+ }
+
       // Build horse data object
       const horse: HorseData = {
         postPosition,
@@ -1564,186 +1702,34 @@ export const parseRaceData = (rawText: string): RaceData => {
 };
 
 // ============================================================================
-// STEPHEN PATTERN ENGINE V2
-// ============================================================================
-
-const computeStephenImprovingScore = (horse) => {
-
-  if (!horse.pastPerformances || horse.pastPerformances.length === 0) {
-    return 0;
-  }
-
-  // newest on top
-  const speeds = horse.pastPerformances
-    .slice(0, 7)
-    .map(pp => (pp.speed === '--' ? 0 : parseInt(pp.speed, 10)))
-    .filter(n => !isNaN(n) && n > 0);
-
-  if (speeds.length === 0) {
-    return 0;
-  }
-
-  // --------------------------------------------------------------------------
-  // NOT ENOUGH DATA
-  // --------------------------------------------------------------------------
-
-  if (speeds.length < 3) {
-
-    const best = Math.max(...speeds);
-    const projection = best + 5;
-
-    return projection + best;
-  }
-
-  // --------------------------------------------------------------------------
-  // NEWEST ON TOP
-  // --------------------------------------------------------------------------
-
-  const s1 = speeds[0];
-  const s2 = speeds[1];
-  const s3 = speeds[2];
-  const s4 = speeds[3] || 0;
-
-  // --------------------------------------------------------------------------
-  // TODAY PROJECTION
-  // --------------------------------------------------------------------------
-
-  const bestLastTwo = Math.max(s1, s2);
-  const todaySpeed = bestLastTwo + 5;
-
-  // --------------------------------------------------------------------------
-  // IMPROVING
-  // oldest -> newest improving
-  // --------------------------------------------------------------------------
-
-  const improving =
-    s4 < s3 &&
-    s3 < s2 &&
-    s2 < s1;
-
-  // --------------------------------------------------------------------------
-  // COLLAPSING
-  // --------------------------------------------------------------------------
-
-  const collapsing =
-    s4 > s3 &&
-    s3 > s2 &&
-    s2 > s1;
-
- // --------------------------------------------------------------------------
-// DIRECTIONAL MOVEMENT
-// --------------------------------------------------------------------------
-
-const d1 = s1 - s2;
-const d2 = s2 - s3;
-const d3 = s3 - s4;
-
-// --------------------------------------------------------------------------
-// TRUE HIT / MISS
-// must alternate directions cleanly
-// --------------------------------------------------------------------------
-
-const hitMiss =
-  (
-    d1 > 0 &&
-    d2 < 0 &&
-    d3 > 0
-  ) ||
-  (
-    d1 < 0 &&
-    d2 > 0 &&
-    d3 < 0
-  );
-
-// --------------------------------------------------------------------------
-// IMPROVING THEN REGRESSION
-// --------------------------------------------------------------------------
-
-const regressionAfterImprovement =
-  d1 < 0 &&
-  d2 > 0 &&
-  d3 > 0;
-
-// --------------------------------------------------------------------------
-// IMPROVING HORSE
-// --------------------------------------------------------------------------
-
-if (improving) {
-
-  return (
-    todaySpeed +
-    s1 +
-    s2
-  );
-}
-
-// --------------------------------------------------------------------------
-// HIT / MISS HORSE
-// use only HIT cycle
-// --------------------------------------------------------------------------
-
-if (hitMiss) {
-
-  const hits = [];
-
-  for (let i = 0; i < speeds.length - 1; i++) {
-
-    if (speeds[i] > speeds[i + 1]) {
-      hits.push(speeds[i]);
-    }
-  }
-
-  hits.sort((a, b) => b - a);
-
-  const hit1 = hits[0] || s1;
-  const hit2 = hits[1] || s2;
-
-  return (
-    (hit1 + 5) +
-    hit1 +
-    hit2
-  );
-}
-
-// --------------------------------------------------------------------------
-// IMPROVING THEN REGRESSION HORSE
-// --------------------------------------------------------------------------
-
-if (regressionAfterImprovement) {
-
-  return (
-    todaySpeed +
-    s2 +
-    s3
-  );
-}
-
-// --------------------------------------------------------------------------
-// COLLAPSING HORSE
-// --------------------------------------------------------------------------
-
-if (collapsing) {
-
-  return (
-    todaySpeed +
-    s1 +
-    Math.min(s2, s3)
-  );
-}
-
-// --------------------------------------------------------------------------
-// CHAOTIC FALLBACK
-// --------------------------------------------------------------------------
-
-return (
-  todaySpeed +
-  s1 +
-  s2
-);
-};
-
-// ============================================================================
 // PUBLIC: calculateRankings (THIS IS WHAT PatternAnalysis.tsx CALLS)
 // ============================================================================
 
-export const calculateRankings = (horses) => {
+
+  export const calculateRankings = (horses: HorseData[]): HorseRanking[] => {
+
+  const rankings: HorseRanking[] = horses.map(h => {
+    const adjustedScore = h.patternAnalysis?.adjustedScore ?? 0;
+    const trust = h.trustScore?.score ?? 100;
+
+    const adjustment = 0;
+    const finalScore = Math.round(adjustedScore);
+
+    return {
+      postPosition: h.postPosition,
+      name: h.name,
+      adjustedScore: Math.round(adjustedScore),
+      adjustment,
+      finalScore,
+      trustLevel: h.trustScore?.level ?? 'MEDIUM'
+    };
+  });
+
+  rankings.sort(
+    (a, b) =>
+      b.finalScore - a.finalScore ||
+      b.adjustedScore - a.adjustedScore
+  );
+
+  return rankings;
+};
