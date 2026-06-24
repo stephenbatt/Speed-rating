@@ -1168,17 +1168,13 @@ else if (improving) {
     }
   );
 
-  let active1 = s1;
-  let active2 = s2;
+  const recent4Scoring = analysisSpeeds.slice(0, 4);
+const bestTwoFromRecent4 = [...recent4Scoring]
+  .sort((a, b) => b - a)
+  .slice(0, 2);
 
-  if (s3 > Math.min(active1, active2)) {
-
-    if (active1 <= active2) {
-      active1 = s3;
-    } else {
-      active2 = s3;
-    }
-  }
+const active1 = bestTwoFromRecent4[0] || 0;
+const active2 = bestTwoFromRecent4[1] || 0;
 
   topThreeBeyer = [
     todaySpeed,
