@@ -1066,17 +1066,18 @@ console.log(
   'HORSE DEBUG:',
   validSpeeds.join(', ')
 );
-if (validSpeeds.length < 2) {
-return {
-pattern: 'unknown',
-hitMissSequence: [],
-prediction: 'unknown',
-topThreeBeyer: [],
-topThreeBeyerSum: 0,
-bestLastTwo: 0,
-adjustedScore: 0,
-notes: ['Insufficient valid speed data for pattern analysis']
-};
+
+if (validSpeeds.length === 0) {
+  return {
+    pattern: 'unknown',
+    hitMissSequence: [],
+    prediction: 'unknown',
+    topThreeBeyer: [],
+    topThreeBeyerSum: 0,
+    bestLastTwo: 0,
+    adjustedScore: 0,
+    notes: ['Insufficient valid speed data for pattern analysis']
+  };
 }
 
 // ============================================================================
@@ -1135,11 +1136,26 @@ const regressionAfterImprovement = false;
 console.log(
   'ANALYSIS SPEEDS:',
   analysisSpeeds.join(', ')
-);;
+);
 
 let topThreeBeyer: number[] = [];
+// --------------------------------------------------------------------------
+// ONE OUT ONLY
+// --------------------------------------------------------------------------
 
-if (improving) {
+if (analysisSpeeds.length === 1) {
+  const onlySpeed = analysisSpeeds[0];
+  const oneOutTodaySpeed = onlySpeed + 5;
+
+  topThreeBeyer = [
+    oneOutTodaySpeed,
+    onlySpeed,
+    onlySpeed
+  ];
+
+  notes.push('Stephen One-Out Pattern');
+}
+else if (improving) {
 
   console.log(
     'IMPROVING DEBUG',
