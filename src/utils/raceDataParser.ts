@@ -1115,8 +1115,9 @@ const recent4 = analysisSpeeds.slice(0, 4);
 
 improving =
   recent4.length >= 4 &&
-  recent4[3] < recent4[2] &&
-  recent4[2] < recent4[1];
+  recent4[0] > recent4[1] &&
+  recent4[0] > recent4[2] &&
+  recent4[0] > recent4[3];
 
 hitMiss = !improving;
 
@@ -1155,6 +1156,7 @@ if (analysisSpeeds.length === 1) {
 
   notes.push('Stephen One-Out Pattern');
 }
+
 else if (improving) {
 
   console.log(
@@ -1198,33 +1200,34 @@ else if (hitMiss) {
       hits.push(analysisSpeeds[i]);
     }
   }
+if (hits.length >= 2) {
 
-  if (hits.length >= 2) {
-
-    let active1 = hits[0];
+let active1 = hits[0];
 let active2 = hits[1];
 
-if (
-  hits.length >= 3 &&
-  hits[0] < hits[1] &&
-  hits[0] < hits[2]
-) {
-  active1 = hits[1];
-  active2 = hits[2];
+const maxHits = hits.slice(0, 4);
+
+if (maxHits.length >= 3) {
+  const weakestHit = Math.min(...maxHits);
+  const weakestIndex = maxHits.indexOf(weakestHit);
+
+  const remainingHits = maxHits.filter((_, i) => i !== weakestIndex);
+
+  active1 = remainingHits[0];
+  active2 = remainingHits[1];
 }
 
-    console.log('HIT/MISS DEBUG');
-    console.log('analysisSpeeds =', analysisSpeeds);
-    console.log('hits =', hits);
-    console.log('active1 =', active1);
-    console.log('active2 =', active2);
+  console.log('HIT/MISS DEBUG');
+  console.log('analysisSpeeds =', analysisSpeeds);
+  console.log('hits =', hits);
+  console.log('active1 =', active1);
+  console.log('active2 =', active2);
 
-
-    topThreeBeyer = [
-      todaySpeed,
-      active1,
-      active2
-    ];
+  topThreeBeyer = [
+    todaySpeed,
+    active1,
+    active2
+  ];
 
     notes.push('Stephen Hit/Miss Pattern');
   }
