@@ -826,7 +826,6 @@ export const calculateStephenTotalScore = (pastPerformances) => {
   return top3.reduce((sum, n) => sum + n, 0);
 };
 
-// Apply negative ladder across horses
 export const applyNegativeLadder = (horses) => {
   const scored = horses.map(h => ({
     ...h,
@@ -839,16 +838,16 @@ export const applyNegativeLadder = (horses) => {
   const highest = scored[0].totalScore;
   const maxStep = 20; // 20 steps of -5 reach -100
 
-  return scored.map(h => {
+  return scored.map((h, index) => {
     const diff = highest - h.totalScore;
-    const step = Math.min(Math.max(Math.round(diff / 5), 0), maxStep);
+    const step = index === 0 ? 0 : Math.min(Math.max(Math.ceil(diff / 5), 0), maxStep);
     const adjustment = -5 * step;
+
     return {
       ...h,
       adjustedScore: h.totalScore,
       adjustment,
-      finalScore: h.totalScore + adjustment
+      finalScore: h.totalScore
     };
   });
 };
-

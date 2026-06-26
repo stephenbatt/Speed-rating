@@ -73,13 +73,21 @@ const PatternAnalysis: React.FC<PatternAnalysisProps> = ({ horses, trackName, ra
                     <td className="px-4 py-3 font-mono font-bold">{r.postPosition}</td>
                     <td className="px-4 py-3 font-medium">{r.name}</td>
                     <td className="px-4 py-3 text-right font-mono">{r.adjustedScore}</td>
-                    <td className={`px-4 py-3 text-right font-mono ${
-                      r.adjustment === -20 ? 'text-orange-600 font-bold' :
-                      r.adjustment === -30 ? 'text-red-700 font-bold' :
-                      'text-red-600'
-                    }`}>
-                      {r.adjustment}
-                    </td>
+                   <td
+  className={`px-4 py-3 text-right font-mono ${
+    i === 0
+      ? 'text-gray-600 font-bold'
+      : (-5 * Math.ceil((rankings[0].adjustedScore - r.adjustedScore) / 5)) === -20
+        ? 'text-orange-600 font-bold'
+        : (-5 * Math.ceil((rankings[0].adjustedScore - r.adjustedScore) / 5)) === -30
+          ? 'text-red-700 font-bold'
+          : 'text-red-600'
+  }`}
+>
+  {i === 0
+    ? 0
+    : -5 * Math.ceil((rankings[0].adjustedScore - r.adjustedScore) / 5)}
+</td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-lg">{r.finalScore}</td>
                   </tr>
                 ))}
@@ -91,7 +99,7 @@ const PatternAnalysis: React.FC<PatternAnalysisProps> = ({ horses, trackName, ra
 
       {/* Individual Horse Cards */}
       <div className="grid gap-4">
-        {rankings.map((r) => {
+        {rankings.map((r, i) => {
           const horse = horses.find(h => h.postPosition === r.postPosition);
           if (!horse) return null;
 
