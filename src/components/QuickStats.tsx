@@ -77,8 +77,25 @@ const QuickStats: React.FC<QuickStatsProps> = ({ horses }) => {
   // Count patterns
   const hitMissCount = horses.filter(h => h.patternAnalysis?.pattern === 'hit-miss').length;
   const improvingCount = horses.filter(h => h.patternAnalysis?.pattern === 'improving').length;
-  
+  const programTop4 = rankings.slice(0, 4);
+
+const shiftedTop4 =
+  rankings.length > 1 ? rankings.slice(1, 5) : [];
+
+const movedDownHorse = rankings[0];
+
+const formatPosts = (list: typeof rankings) =>
+  list.map(r => `#${r.postPosition}`).join(' - ');
+
   const stats = [
+    {
+  label: 'Program Top 4',
+  value: formatPosts(programTop4),
+  subValue: programTop4[0]?.finalScore.toString(),
+  icon: Award,
+  color: 'bg-emerald-500',
+  description: 'Highest scores'
+},
     {
       label: 'Field Size',
       value: horses.length.toString(),

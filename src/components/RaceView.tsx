@@ -83,49 +83,79 @@ const RaceView: React.FC<RaceViewProps> = ({
   }, [horses, sortBy]);
   
   // Get top picks based on score
-  const topPicks = useMemo(() => {
-    return rankings.slice(0, 3).map(r => r.postPosition);
-  }, [rankings]);
+ const enginePicks = useMemo(() => {
+  return rankings.slice(0, 4).map(r => r.postPosition);
+}, [rankings]);
+
+const shiftPicks = useMemo(() => {
+  return rankings.slice(1, 5).map(r => r.postPosition);
+}, [rankings]);
+
+const ppPicks: number[] = []; // PP picks will be wired next
+
+const formatPickList = (picks: number[]) =>
+  picks.length > 0 ? picks.join(', ') : 'PP TBD';
   
-  return (
-    <div className="space-y-6">
-      {/* Race Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">{trackName}</h1>
-                <p className="text-slate-300">Race {raceNumber} • {raceDate}</p>
-              </div>
+ return (
+  <div className="space-y-6">
+    {/* Race Header */}
+    <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
+              <Trophy className="w-6 h-6 text-white" />
             </div>
-          </div>
-          
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="bg-slate-700/50 rounded-lg px-4 py-2">
-              <div className="text-xs text-slate-400">Entries</div>
-              <div className="text-xl font-bold">{horses.length}</div>
+            <div>
+              <h1 className="text-2xl font-bold">{trackName}</h1>
+              <p className="text-slate-300">Race {raceNumber} • {raceDate}</p>
             </div>
-            <div className="bg-slate-700/50 rounded-lg px-4 py-2">
-              <div className="text-xs text-slate-400">Top Picks (by Score)</div>
-              <div className="text-xl font-bold text-amber-400">
-                {topPicks.join(', ')}
-              </div>
-            </div>
-            {rankings.length > 0 && (
-              <div className="bg-emerald-600/50 rounded-lg px-4 py-2">
-                <div className="text-xs text-emerald-200">Top Score</div>
-                <div className="text-xl font-bold text-emerald-100">
-                  #{rankings[0].postPosition} - {rankings[0].adjustedScore}
-                </div>
-              </div>
-            )}
           </div>
         </div>
+
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="bg-slate-700/50 rounded-lg px-4 py-2">
+            <div className="grid grid-cols-3 gap-6 text-center text-sm">
+              <div>
+                <div className="font-bold text-blue-300">🔵 PP</div>
+                {ppPicks.map((p, i) => (
+                  <div key={i} className="text-xl font-bold text-blue-400">
+                    {p}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="font-bold text-green-300">🟢 ENGINE</div>
+                {enginePicks.map((p, i) => (
+                  <div key={i} className="text-xl font-bold text-green-400">
+                    {p}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="font-bold text-amber-300">🟠 SHIFT</div>
+                {shiftPicks.map((p, i) => (
+                  <div key={i} className="text-xl font-bold text-amber-400">
+                    {p}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {rankings.length > 0 && (
+            <div className="bg-emerald-600/50 rounded-lg px-4 py-2">
+              <div className="text-xs text-emerald-200">Top Score</div>
+              <div className="text-xl font-bold text-emerald-100">
+                #{rankings[0].postPosition} - {rankings[0].adjustedScore}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+    </div>
       
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-xl p-4 shadow-md border border-gray-200">

@@ -1114,10 +1114,14 @@ for (let i = 0; i < analysisSpeeds.length - 1; i++) {
 const recent4 = analysisSpeeds.slice(0, 4);
 
 improving =
-  recent4.length >= 4 &&
-  recent4[0] > recent4[1] &&
-  recent4[0] > recent4[2] &&
-  recent4[0] > recent4[3];
+  recent4.length >= 4 && (
+    (recent4[0] > recent4[1] &&
+      recent4[0] > recent4[2] &&
+      recent4[0] > recent4[3])
+    ||
+    (recent4[0] > recent4[3] &&
+      recent4[1] > recent4[3])
+  );
 
 hitMiss = !improving;
 
